@@ -133,8 +133,28 @@
   @keyframes hintPulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.5; } }
 
   /* ===== Arena Screen ===== */
-  #arenaScreen, #garageScreen { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start; z-index: var(--z-overlay); background: radial-gradient(ellipse at 50% 50%, var(--void) 0%, var(--void-deep) 100%); padding: 20px; overflow-y: auto; }
-  #arenaScreen h2, #garageScreen h2 { font-family: var(--font-display); font-size: 36px; margin: 10px 0 20px; letter-spacing: 4px; font-weight: 900; text-shadow: 0 0 20px rgba(255,211,74,0.4); flex-shrink: 0; }
+  #arenaScreen, #garageScreen, #settingsScreen { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start; z-index: var(--z-overlay); background: radial-gradient(ellipse at 50% 50%, var(--void) 0%, var(--void-deep) 100%); padding: 20px; overflow-y: auto; }
+  #arenaScreen h2, #garageScreen h2, #settingsScreen h2 { font-family: var(--font-display); font-size: 36px; margin: 10px 0 20px; letter-spacing: 4px; font-weight: 900; text-shadow: 0 0 20px rgba(255,211,74,0.4); flex-shrink: 0; }
+
+  /* ===== Settings ===== */
+  #settingsBackBtn { position: absolute; top: 20px; left: 20px; padding: 10px 20px; min-height: 44px; font-family: var(--font-display); font-size: 14px; font-weight: 700; border: 2px solid var(--text); border-radius: 18px; background: rgba(0,0,0,0.35); color: var(--text); cursor: pointer; }
+  .settings-panel { background: rgba(10,10,22,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 24px 36px; max-width: 520px; width: 100%; }
+  .settings-panel .optrow button.on { background: linear-gradient(135deg, rgba(255,211,74,0.35), rgba(255,122,60,0.2)); border-color: var(--accent); }
+  #remapList { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .remap-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .remap-row span { font-size: 15px; opacity: 0.85; text-transform: capitalize; }
+  .remap-row button { padding: 6px 14px; min-width: 110px; min-height: 36px; font-family: var(--font-display); font-size: 12px; font-weight: 700; border: 1.5px solid rgba(255,255,255,0.2); border-radius: 10px; background: rgba(255,255,255,0.04); color: var(--accent); cursor: pointer; }
+  .remap-row button.listening { border-color: var(--accent); color: var(--text); animation: hintPulse 1s ease-in-out infinite; }
+
+  /* ===== Touch controls ===== */
+  #touchUI { display: none; position: fixed; inset: 0; z-index: var(--z-hud); pointer-events: none; }
+  #stickZone { position: absolute; left: 0; bottom: 0; width: 45%; height: 55%; pointer-events: auto; touch-action: none; }
+  #stickBase { position: absolute; left: 70px; bottom: 90px; width: 120px; height: 120px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.25); background: rgba(10,10,25,0.35); backdrop-filter: blur(2px); }
+  #stickNub { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; border-radius: 50%; background: rgba(255,211,74,0.5); border: 2px solid var(--accent); transform: translate(-50%, -50%); }
+  #touchButtons { position: absolute; right: 16px; bottom: 80px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; pointer-events: auto; }
+  .tbtn { width: 82px; height: 82px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); background: rgba(10,10,25,0.4); color: var(--text); font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: 1px; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .tbtn:active, .tbtn.held { background: rgba(255,211,74,0.35); border-color: var(--accent); }
+  .tbtn.small { width: 82px; height: 54px; border-radius: 27px; font-size: 11px; }
   #arenaGrid, #garageGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; max-width: 1200px; width: 100%; justify-content: center; }
   .carDesc { position: absolute; top: 6px; left: 0; right: 0; text-align: center; font-size: 11px; opacity: 0.7; padding: 0 8px; pointer-events: none; }
   .arenaCard { width: 100%; height: 140px; border: 3px solid rgba(255,255,255,0.2); border-radius: 16px; cursor: pointer; overflow: hidden; position: relative; transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast); }
@@ -205,6 +225,7 @@
       <div class="lbl">CAR</div>
       <div class="optrow"><button id="garageBtn">Hot Wheels ▸ GARAGE</button></div>
       <button id="playBtn">PLAY</button>
+      <div class="optrow"><button id="settingsBtn">⚙ SETTINGS</button></div>
     </div>
   </div>
   <div class="start-hint">DRAG TO ROTATE · SCROLL TO ZOOM</div>
@@ -222,6 +243,36 @@
   <button id="garageBackBtn" class="back-btn">← Back</button>
   <h2>GARAGE</h2>
   <div id="garageGrid"></div>
+</div>
+
+<div id="settingsScreen">
+  <button id="settingsBackBtn">← Back</button>
+  <h2>SETTINGS</h2>
+  <div class="settings-panel">
+    <div class="lbl">AUDIO</div>
+    <div class="optrow">
+      <button id="setSound">Sound</button>
+      <button id="setMusic">Music</button>
+      <button id="setAnnouncer">Announcer</button>
+    </div>
+    <div class="lbl">QUALITY</div>
+    <div class="optrow" id="qualityRow">
+      <button data-q="high">High</button>
+      <button data-q="low">Low</button>
+    </div>
+    <div class="lbl">CONTROLS — CLICK TO REBIND</div>
+    <div id="remapList"></div>
+  </div>
+</div>
+
+<div id="touchUI">
+  <div id="stickZone"><div id="stickBase"><div id="stickNub"></div></div></div>
+  <div id="touchButtons">
+    <button class="tbtn" id="tbJump">JUMP</button>
+    <button class="tbtn" id="tbBoost">BOOST</button>
+    <button class="tbtn" id="tbDrift">DRIFT</button>
+    <button class="tbtn small" id="tbCam">CAM</button>
+  </div>
 </div>
 
 <script type="importmap">
@@ -3191,7 +3242,7 @@ addEventListener('keydown', e => {
   if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
   keys[e.code] = true;
   if (e.code === 'KeyR' && state.player) resetCar(state.player, state.player.spawn.x, state.player.spawn.z, state.player.spawn.yaw);
-  if (e.code === 'KeyC') { state.camMode = (state.camMode + 1) % 2; camlabel.textContent = state.camMode === 0 ? 'BALL CAM' : 'CAR CAM'; }
+  if (e.code === 'KeyC') toggleCam();
   if (e.code === 'KeyM') {
     muted = !muted;
     nkSettings.muted = muted; saveSettings();
@@ -3218,6 +3269,96 @@ function armAudio() {
 }
 addEventListener('pointerdown', armAudio, { once: false });
 addEventListener('keydown', armAudio, { once: false });
+
+// ---------- Input sources: keymap (rebindable), touch, gamepad ----------
+const DEFAULT_KEYMAP = {
+  fwd: ['KeyW', 'ArrowUp'], back: ['KeyS', 'ArrowDown'],
+  left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
+  jump: ['Space'], boost: ['ShiftLeft', 'ShiftRight'], powerslide: ['KeyX'],
+};
+const keymap = Object.assign({}, DEFAULT_KEYMAP, nkSettings.keymap || {});
+const keyDown = (action) => keymap[action].some(k => keys[k]);
+
+function toggleCam() {
+  state.camMode = (state.camMode + 1) % 2;
+  camlabel.textContent = state.camMode === 0 ? 'BALL CAM' : 'CAR CAM';
+}
+
+// Touch: left-zone virtual stick + right-side action buttons
+const touchInput = { fwd: false, back: false, left: false, right: false, jump: false, boost: false, powerslide: false };
+const isTouchDevice = matchMedia('(hover: none) and (pointer: coarse)').matches;
+{
+  const zone = document.getElementById('stickZone');
+  const nub = document.getElementById('stickNub');
+  let stickId = null, cx = 0, cy = 0;
+  const setStick = (dx, dy) => {
+    const r = 48, len = Math.hypot(dx, dy) || 1, cl = Math.min(len, r) / len;
+    nub.style.transform = `translate(calc(-50% + ${dx * cl}px), calc(-50% + ${dy * cl}px))`;
+    touchInput.left = dx < -14; touchInput.right = dx > 14;
+    touchInput.fwd = dy < -14; touchInput.back = dy > 22;
+  };
+  zone.addEventListener('pointerdown', e => {
+    stickId = e.pointerId; cx = e.clientX; cy = e.clientY;
+    zone.setPointerCapture(e.pointerId);
+  });
+  zone.addEventListener('pointermove', e => {
+    if (e.pointerId !== stickId) return;
+    setStick(e.clientX - cx, e.clientY - cy);
+  });
+  const endStick = e => {
+    if (e.pointerId !== stickId) return;
+    stickId = null;
+    nub.style.transform = 'translate(-50%, -50%)';
+    touchInput.left = touchInput.right = touchInput.fwd = touchInput.back = false;
+  };
+  zone.addEventListener('pointerup', endStick);
+  zone.addEventListener('pointercancel', endStick);
+  const bindBtn = (id, action) => {
+    const b = document.getElementById(id);
+    b.addEventListener('pointerdown', e => { e.preventDefault(); touchInput[action] = true; b.classList.add('held'); });
+    const off = () => { touchInput[action] = false; b.classList.remove('held'); };
+    b.addEventListener('pointerup', off);
+    b.addEventListener('pointercancel', off);
+    b.addEventListener('pointerleave', off);
+  };
+  bindBtn('tbJump', 'jump');
+  bindBtn('tbBoost', 'boost');
+  bindBtn('tbDrift', 'powerslide');
+  document.getElementById('tbCam').addEventListener('pointerdown', e => { e.preventDefault(); toggleCam(); });
+}
+let touchUIVisible = false;
+function updateTouchUI() {
+  const want = isTouchDevice && state.running;
+  if (want !== touchUIVisible) {
+    touchUIVisible = want;
+    document.getElementById('touchUI').style.display = want ? 'block' : 'none';
+  }
+}
+
+// Gamepad: standard mapping — stick/dpad steer, RT gas, LT reverse,
+// A jump, B/RB boost, X/LB drift, Y ball-cam
+const padInput = { fwd: false, back: false, left: false, right: false, jump: false, boost: false, powerslide: false };
+let padSeen = false, padPrevY = false;
+function readGamepad() {
+  const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(Boolean) : null;
+  if (!gp) {
+    if (padSeen) { padInput.fwd = padInput.back = padInput.left = padInput.right = padInput.jump = padInput.boost = padInput.powerslide = false; }
+    return;
+  }
+  if (!padSeen) { padSeen = true; showMsg('GAMEPAD CONNECTED', 1.5); }
+  const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+  const btn = i => gp.buttons[i] && gp.buttons[i].pressed;
+  const val = i => (gp.buttons[i] && gp.buttons[i].value) || 0;
+  padInput.left = ax < -0.3 || btn(14);
+  padInput.right = ax > 0.3 || btn(15);
+  padInput.fwd = val(7) > 0.12 || ay < -0.5 || btn(12);
+  padInput.back = val(6) > 0.12 || btn(13);
+  padInput.jump = btn(0);
+  padInput.boost = btn(1) || btn(5);
+  padInput.powerslide = btn(2) || btn(4);
+  if (btn(3) && !padPrevY) toggleCam();
+  padPrevY = btn(3);
+}
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
   composer.setSize(innerWidth, innerHeight);
@@ -4390,16 +4531,18 @@ function loop(now) {
     musicGain.gain.value += (target - musicGain.gain.value) * Math.min(1, dt * 3);
     musicFilter.frequency.value = state.running ? 1100 : 9000;
   }
+  updateTouchUI();
 
   if (state.running) {
+    readGamepad();
     const pIn = {
-      fwd: keys['KeyW'] || keys['ArrowUp'],
-      back: keys['KeyS'] || keys['ArrowDown'],
-      left: keys['KeyA'] || keys['ArrowLeft'],
-      right: keys['KeyD'] || keys['ArrowRight'],
-      jump: keys['Space'],
-      boost: keys['ShiftLeft'] || keys['ShiftRight'],
-      powerslide: keys['KeyX'],
+      fwd: keyDown('fwd') || touchInput.fwd || padInput.fwd,
+      back: keyDown('back') || touchInput.back || padInput.back,
+      left: keyDown('left') || touchInput.left || padInput.left,
+      right: keyDown('right') || touchInput.right || padInput.right,
+      jump: keyDown('jump') || touchInput.jump || padInput.jump,
+      boost: keyDown('boost') || touchInput.boost || padInput.boost,
+      powerslide: keyDown('powerslide') || touchInput.powerslide || padInput.powerslide,
     };
     // During countdown, freeze physics but let cars rev (visible but not moving)
     const frozen = state.countdown > 0;
@@ -4562,6 +4705,102 @@ function returnToMenu() {
 }
 exitBtn.addEventListener('click', returnToMenu);
 document.getElementById('skipBtn').addEventListener('click', skipReplay);
+
+// ---------- Settings screen ----------
+{
+  const screen = document.getElementById('settingsScreen');
+  const startScreen = document.getElementById('start');
+  document.getElementById('settingsBtn').addEventListener('click', () => {
+    startScreen.style.display = 'none';
+    screen.style.display = 'flex';
+    refreshSettingsUI();
+  });
+  document.getElementById('settingsBackBtn').addEventListener('click', () => {
+    screen.style.display = 'none';
+    startScreen.style.display = 'flex';
+  });
+
+  const setSound = document.getElementById('setSound');
+  const setMusic = document.getElementById('setMusic');
+  const setAnnouncer = document.getElementById('setAnnouncer');
+  function refreshSettingsUI() {
+    setSound.classList.toggle('on', !muted);
+    setSound.textContent = muted ? 'Sound: Off' : 'Sound: On';
+    setMusic.classList.toggle('on', musicOn);
+    setMusic.textContent = musicOn ? 'Music: On' : 'Music: Off';
+    setAnnouncer.classList.toggle('on', announcerOn);
+    setAnnouncer.textContent = announcerOn ? 'Announcer: On' : 'Announcer: Off';
+    const q = nkSettings.quality || 'high';
+    document.querySelectorAll('#qualityRow button').forEach(b => b.classList.toggle('sel', b.dataset.q === q));
+  }
+  setSound.addEventListener('click', () => {
+    muted = !muted;
+    nkSettings.muted = muted; saveSettings();
+    updateSoundLabel();
+    if (!muted && !audioCtx) initAudio();
+    if (muted && audioCtx) { engineGain.gain.value = 0; boostGain.gain.value = 0; crowdGain.gain.value = 0; musicGain.gain.value = 0; }
+    refreshSettingsUI();
+  });
+  setMusic.addEventListener('click', () => {
+    musicOn = !musicOn;
+    nkSettings.music = musicOn; saveSettings();
+    refreshSettingsUI();
+  });
+  setAnnouncer.addEventListener('click', () => {
+    announcerOn = !announcerOn;
+    nkSettings.announcer = announcerOn; saveSettings();
+    if (announcerOn) announce('Announcer on');
+    refreshSettingsUI();
+  });
+
+  // Quality: High = bloom + sharp DPR, Low = no bloom + DPR 1 (weak GPUs)
+  function applyQuality(q) {
+    nkSettings.quality = q; saveSettings();
+    bloomPass.enabled = q !== 'low';
+    const pr = q === 'low' ? 1 : Math.min(devicePixelRatio, 1.75);
+    composer.setPixelRatio(pr);
+    composer.setSize(innerWidth, innerHeight);
+    refreshSettingsUI();
+  }
+  document.querySelectorAll('#qualityRow button').forEach(b =>
+    b.addEventListener('click', () => applyQuality(b.dataset.q)));
+  if ((nkSettings.quality || 'high') === 'low') applyQuality('low');
+
+  // Key rebinding: click an action, press a key, saved to nk-settings
+  const remapList = document.getElementById('remapList');
+  const ACTION_LABELS = { fwd: 'Drive', back: 'Reverse', left: 'Steer left', right: 'Steer right', jump: 'Jump', boost: 'Boost', powerslide: 'Powerslide' };
+  let listening = null;
+  function buildRemapList() {
+    remapList.innerHTML = '';
+    for (const action of Object.keys(ACTION_LABELS)) {
+      const row = document.createElement('div');
+      row.className = 'remap-row';
+      const label = document.createElement('span');
+      label.textContent = ACTION_LABELS[action];
+      const btn = document.createElement('button');
+      btn.textContent = keymap[action].join(' / ');
+      btn.addEventListener('click', () => {
+        if (listening) listening.btn.classList.remove('listening');
+        listening = { action, btn };
+        btn.classList.add('listening');
+        btn.textContent = 'press a key…';
+      });
+      row.append(label, btn);
+      remapList.appendChild(row);
+    }
+  }
+  buildRemapList();
+  addEventListener('keydown', e => {
+    if (!listening || screen.style.display !== 'flex') return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    keymap[listening.action] = [e.code];
+    nkSettings.keymap = keymap; saveSettings();
+    listening.btn.classList.remove('listening');
+    listening = null;
+    buildRemapList();
+  }, { capture: true });
+}
 
 // ---------- Arena selection screen ----------
 const arenaScreen = document.getElementById('arenaScreen');
