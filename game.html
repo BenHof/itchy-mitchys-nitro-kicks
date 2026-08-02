@@ -1393,13 +1393,15 @@ stadiumGroup.add(crowdMesh);
 // ---------- Ad-board ring around the glass base ----------
 function createAdBoardTexture() {
   const c = document.createElement('canvas');
-  c.width = 2048; c.height = 128;
+  c.width = 3072; c.height = 128;
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#0d1120'; ctx.fillRect(0, 0, c.width, c.height);
   const ads = [
     { text: 'ITCHY MITCHY', fg: '#ffd34a', bg: '#0d1120' },
     { text: 'NITRO KICKS', fg: '#0d1120', bg: '#ffd34a' },
+    { text: 'TEPE DENTISTRY', fg: '#ffffff', bg: '#0e5c8a' },
     { text: 'BOOST★COLA', fg: '#ffffff', bg: '#c2361f' },
+    { text: "MITCHELL'S GARAGE", fg: '#ffd34a', bg: '#1a1410' },
     { text: "MITCHY'S GARAGE", fg: '#7accff', bg: '#101828' },
     { text: 'RACCOON RACING', fg: '#0d1120', bg: '#e8e8f0' },
     { text: 'TURBO+', fg: '#ff7a3c', bg: '#181020' },
@@ -1410,7 +1412,8 @@ function createAdBoardTexture() {
     ctx.fillStyle = ads[i].bg; ctx.fillRect(i * w + 4, 4, w - 8, c.height - 8);
     ctx.fillStyle = ads[i].fg;
     ctx.font = '900 52px Rajdhani, Arial, sans-serif';
-    ctx.fillText(ads[i].text, i * w + w / 2, c.height / 2 + 2);
+    // maxWidth condenses long sponsor names instead of overflowing the slot
+    ctx.fillText(ads[i].text, i * w + w / 2, c.height / 2 + 2, w - 28);
   }
   const tex = new THREE.CanvasTexture(c);
   tex.anisotropy = 8;
@@ -5058,9 +5061,6 @@ garageBackBtn.addEventListener('click', () => {
   }
   requestAnimationFrame(animateStart);
 })();
-
-// TEMP DEBUG HOOK — remove before shipping
-window.__test = { state, kickoff, setupCars, aiInput, updateCar, updateBall, carBallCollision, carCarCollisions, DIFF, ARENA, BALL_R, CAR, GOAL_W, GOAL_H };
 
 </script>
 </body>
