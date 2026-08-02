@@ -224,6 +224,17 @@
     #playBtn { padding: 13px 44px; font-size: 18px; margin-top: 16px; }
     #bgBtn { top: 10px; right: 10px; padding: 6px 12px; font-size: 11px; min-height: 36px; }
     .start-hint { display: none; }
+
+    /* Sub-screens: clear the back button, two-up card grids, tighter panels */
+    #arenaScreen h2, #garageScreen h2, #settingsScreen h2, #tournamentScreen h2 { font-size: 20px; letter-spacing: 2px; margin: 52px 0 14px; }
+    #arenaGrid, #garageGrid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    #arenaPlayBtn { padding: 12px 36px; font-size: 15px; }
+    .settings-panel { padding: 16px 14px; }
+    .remap-row button { min-width: 92px; font-size: 11px; }
+    #statsScreen h2 { font-size: 26px; letter-spacing: 3px; }
+    #statsTable { font-size: 14px; }
+    #statsTable th, #statsTable td { padding: 6px 8px; }
+    #tournamentPlayBtn, #statsContinueBtn { font-size: 14px; padding: 12px 32px; }
   }
 </style>
 </head>
@@ -753,6 +764,35 @@ function createPitchTexture(arenaKey) {
     ctx.fillStyle = a.noiseColors[Math.floor(Math.random() * a.noiseColors.length)];
     ctx.fillRect(x, y, 2, 2);
   }
+  // Worn turf: high-traffic zones in front of each goal and at the kickoff
+  // spot read as scuffed, played-on ground instead of factory-fresh paint
+  function wearPatch(cx2, cy2, rx, ry, alpha) {
+    ctx.save();
+    ctx.translate(cx2, cy2);
+    ctx.scale(1, ry / rx);
+    const g = ctx.createRadialGradient(0, 0, rx * 0.1, 0, 0, rx);
+    g.addColorStop(0, `rgba(15,12,6,${alpha})`);
+    g.addColorStop(1, 'rgba(15,12,6,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  wearPatch(W / 2, H * 0.055, W * 0.24, H * 0.05, 0.2);
+  wearPatch(W / 2, H * 0.945, W * 0.24, H * 0.05, 0.2);
+  wearPatch(W / 2, H / 2, W * 0.1, W * 0.07, 0.12);
+  // Scuff streaks concentrated around the goal mouths
+  for (const gy of [H * 0.06, H * 0.94]) {
+    for (let i = 0; i < 40; i++) {
+      const x = W / 2 + (Math.random() - 0.5) * W * 0.55;
+      const y = gy + (Math.random() - 0.5) * H * 0.05;
+      ctx.strokeStyle = `rgba(18,14,7,${0.05 + Math.random() * 0.08})`;
+      ctx.lineWidth = 2 + Math.random() * 3;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + (Math.random() - 0.5) * 44, y + (Math.random() - 0.5) * 14);
+      ctx.stroke();
+    }
+  }
   // Line markings
   ctx.strokeStyle = a.lineColor;
   ctx.lineWidth = 5;
@@ -775,6 +815,14 @@ function createPitchTexture(arenaKey) {
   // Center spot
   ctx.fillStyle = a.lineColor;
   ctx.beginPath(); ctx.arc(px(0), py(0), 6, 0, Math.PI * 2); ctx.fill();
+  // Goal crease arcs bulging into the field from each goal line
+  const creaseR = 1400 * sx;
+  ctx.beginPath();
+  ctx.arc(px(0), py(ARENA.l / 2 * sy), creaseR, 0, Math.PI, false);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(px(0), py(-ARENA.l / 2 * sy), creaseR, Math.PI, 2 * Math.PI, false);
+  ctx.stroke();
   // "Itchy Mitchy" logo inside center circle
   ctx.save();
   ctx.translate(px(0), py(0));
