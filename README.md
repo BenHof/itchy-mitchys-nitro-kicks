@@ -16,10 +16,28 @@ Score more goals than the red team before time runs out. You're on **blue team**
 | **Space** | Jump (press twice for dodge/flip) |
 | **Shift** | Boost (uses boost meter) |
 | **X** | Powerslide |
+| **E** | Use power-up (Rumble mode) |
 | **C** | Toggle ball cam / car cam |
 | **Q** (hold) | Car cam |
 | **M** | Toggle sound |
 | **R** | Reset car |
+| **T** | Reset ball (Free Play) |
+
+Keys are rebindable in **⚙ Settings**, which also has sound/music/announcer toggles and a High/Low quality switch.
+
+**Gamepad**: plug in a controller — left stick steers, right trigger drives, left trigger reverses, **A** jumps, **B/RB** boosts, **X/LB** powerslides, **Y** toggles ball cam.
+
+**Touch**: on phones and tablets a virtual stick and JUMP / BOOST / DRIFT buttons appear automatically.
+
+**2P Duel** (local): Player 2 drives with the **arrow keys**, **O** jump, **P** boost, **I** powerslide, **U** use power-up.
+
+### Modes
+
+- **1v1 – 4v4** — classic matches vs AI (Rookie to Legendary)
+- **2P Duel** — local two-player on one keyboard
+- **Free Play** — no clock, no opponent; practice aerials (T resets the ball)
+- **Tournament** — a four-round ladder from Rookie to Legendary; progress is saved
+- **Rumble mutator** — every 10 seconds each car gets a power-up: **Magnet** (ball curves to you), **Freeze** (ball locks in place), or **Overdrive** (8s unlimited boost)
 
 ### Gameplay Tips
 

@@ -68,6 +68,7 @@
   #boostbar { position: fixed; bottom: 30px; right: 30px; width: 220px; height: 18px; border: 2px solid var(--accent); border-radius: 9px; background: rgba(0,0,0,0.4); overflow: hidden; z-index: var(--z-hud); }
   #boostfill { height: 100%; width: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-warm)); transition: width 0.05s linear; }
   #boostlabel { position: fixed; bottom: 52px; right: 30px; font-family: var(--font-display); font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: 1px; z-index: var(--z-hud); }
+  #itemLabel { position: fixed; bottom: 78px; right: 30px; font-family: var(--font-display); font-size: 13px; color: var(--pink); font-weight: 700; letter-spacing: 1px; z-index: var(--z-hud); text-shadow: 0 0 12px rgba(255,20,147,0.6); animation: hintPulse 1.6s ease-in-out infinite; }
   #msg { position: fixed; top: 38%; left: 0; width: 100%; text-align: center; font-family: var(--font-display); font-size: 44px; font-weight: 900; text-shadow: 0 2px 12px rgba(0,0,0,0.8); opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: var(--z-hud); }
   #msg.bounce { animation: goalBounce 0.8s var(--ease-spring); }
   @keyframes goalBounce {
@@ -146,6 +147,19 @@
   .remap-row button { padding: 6px 14px; min-width: 110px; min-height: 36px; font-family: var(--font-display); font-size: 12px; font-weight: 700; border: 1.5px solid rgba(255,255,255,0.2); border-radius: 10px; background: rgba(255,255,255,0.04); color: var(--accent); cursor: pointer; }
   .remap-row button.listening { border-color: var(--accent); color: var(--text); animation: hintPulse 1s ease-in-out infinite; }
 
+  /* ===== Tournament ===== */
+  #tournamentScreen { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start; z-index: var(--z-overlay); background: radial-gradient(ellipse at 50% 50%, var(--void) 0%, var(--void-deep) 100%); padding: 20px; overflow-y: auto; }
+  #tournamentScreen h2 { font-family: var(--font-display); font-size: 36px; margin: 10px 0 20px; letter-spacing: 4px; font-weight: 900; text-shadow: 0 0 20px rgba(255,211,74,0.4); }
+  #tournamentBackBtn { position: absolute; top: 20px; left: 20px; padding: 10px 20px; min-height: 44px; font-family: var(--font-display); font-size: 14px; font-weight: 700; border: 2px solid var(--text); border-radius: 18px; background: rgba(0,0,0,0.35); color: var(--text); cursor: pointer; }
+  #champBadge { text-align: center; font-family: var(--font-display); font-size: 13px; color: var(--accent); letter-spacing: 2px; margin-bottom: 12px; min-height: 18px; }
+  #bracketList { display: flex; flex-direction: column; gap: 8px; }
+  .bracket-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 16px; border: 1.5px solid rgba(255,255,255,0.12); border-radius: 12px; background: rgba(255,255,255,0.03); }
+  .bracket-row.done { border-color: rgba(102,221,153,0.5); }
+  .bracket-row.next { border-color: var(--accent); background: rgba(255,211,74,0.08); }
+  .bracket-row .rname { font-family: var(--font-display); font-size: 14px; font-weight: 700; letter-spacing: 1px; }
+  .bracket-row .rstate { font-size: 13px; opacity: 0.75; }
+  #tournamentPlayBtn { margin: 22px auto 0; display: block; padding: 13px 46px; min-height: 44px; font-family: var(--font-display); font-size: 16px; font-weight: 900; border: none; border-radius: 24px; background: linear-gradient(135deg, var(--accent), var(--accent-warm)); color: var(--void); cursor: pointer; letter-spacing: 3px; }
+
   /* ===== Post-match stats ===== */
   #statsScreen { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: var(--z-modal); background: rgba(5,5,8,0.82); backdrop-filter: blur(6px); }
   #statsScreen h2 { font-family: var(--font-display); font-size: 42px; letter-spacing: 5px; font-weight: 900; margin: 0 0 18px; text-shadow: 0 0 24px rgba(255,211,74,0.45); }
@@ -199,6 +213,7 @@
 <div id="ballarrow"></div>
 <div id="boostlabel">BOOST</div>
 <div id="boostbar"><div id="boostfill"></div></div>
+<div id="itemLabel"></div>
 <div id="msg"></div>
 <button id="exitBtn" title="Exit to main menu" aria-label="Exit to main menu">← EXIT</button>
 <button id="skipBtn" title="Skip replay" aria-label="Skip replay">SKIP REPLAY ⏭</button>
@@ -228,6 +243,13 @@
         <button data-mode="2v2">2v2</button>
         <button data-mode="3v3">3v3</button>
         <button data-mode="4v4">4v4</button>
+        <button data-mode="2p" title="Local duel — P2 uses Arrows + O jump / P latch boost / I powerslide">2P DUEL</button>
+        <button data-mode="free" title="No clock, no opponent — practice. R resets your car, T resets the ball">FREE PLAY</button>
+      </div>
+      <div class="lbl">MUTATORS</div>
+      <div class="optrow" id="mutatorRow">
+        <button data-mut="off" class="sel">Standard</button>
+        <button data-mut="rumble" title="Every 10s each car gets a power-up: Magnet, Freeze, or Overdrive. Press E to use">Rumble</button>
       </div>
       <div class="lbl">DIFFICULTY</div>
       <div class="optrow" id="diffRow">
@@ -239,7 +261,10 @@
       <div class="lbl">CAR</div>
       <div class="optrow"><button id="garageBtn">Hot Wheels ▸ GARAGE</button></div>
       <button id="playBtn">PLAY</button>
-      <div class="optrow"><button id="settingsBtn">⚙ SETTINGS</button></div>
+      <div class="optrow">
+        <button id="tournamentBtn">🏆 TOURNAMENT</button>
+        <button id="settingsBtn">⚙ SETTINGS</button>
+      </div>
     </div>
   </div>
   <div class="start-hint">DRAG TO ROTATE · SCROLL TO ZOOM</div>
@@ -276,6 +301,16 @@
     </div>
     <div class="lbl">CONTROLS — CLICK TO REBIND</div>
     <div id="remapList"></div>
+  </div>
+</div>
+
+<div id="tournamentScreen">
+  <button id="tournamentBackBtn">← Back</button>
+  <h2>TOURNAMENT</h2>
+  <div class="settings-panel">
+    <div id="champBadge"></div>
+    <div id="bracketList"></div>
+    <button id="tournamentPlayBtn">PLAY ROUND 1</button>
   </div>
 </div>
 
@@ -3258,7 +3293,24 @@ function makeCar(team, isPlayer, x, z, yaw) {
 function setupCars() {
   state.cars.forEach(c => scene.remove(c.mesh));
   state.cars = [];
+  state.player2 = null;
   const m = state.mode;
+  // free play: just the player and an empty pitch
+  if (m === 'free') {
+    state.player = makeCar('blue', true, 0, -1800, 0);
+    state.cars.push(state.player);
+    return;
+  }
+  // local duel: player 1 (blue) vs player 2 (red) — no AI
+  if (m === '2p') {
+    state.player = makeCar('blue', true, 0, -1800, 0);
+    state.cars.push(state.player);
+    const p2 = makeCar('orange', false, 0, 1800, Math.PI);
+    p2.isPlayer2 = true;
+    state.player2 = p2;
+    state.cars.push(p2);
+    return;
+  }
   const perTeam = m === '1v1' ? 1 : m === '2v2' ? 2 : m === '3v3' ? 3 : 4;
   // blue team (player + AIs)
   for (let i = 0; i < perTeam; i++) {
@@ -3283,6 +3335,14 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'KeyR' && state.player) resetCar(state.player, state.player.spawn.x, state.player.spawn.z, state.player.spawn.yaw);
   if (e.code === 'KeyC') toggleCam();
+  if (e.code === 'KeyE' && state.player && state.player.item) useItem(state.player);
+  if (e.code === 'KeyU' && state.player2 && state.player2.item) useItem(state.player2);
+  // Free play: T re-centers the ball for another rep
+  if (e.code === 'KeyT' && state.mode === 'free' && state.running) {
+    state.ball.pos.set(0, BALL_R, 0);
+    state.ball.vel.set(0, 0, 0);
+    state.ball.spin.set(0, 0, 0);
+  }
   if (e.code === 'KeyM') {
     muted = !muted;
     nkSettings.muted = muted; saveSettings();
@@ -3398,6 +3458,47 @@ function readGamepad() {
   padInput.powerslide = btn(2) || btn(4);
   if (btn(3) && !padPrevY) toggleCam();
   padPrevY = btn(3);
+}
+
+// ---------- Rumble mutator: timed power-up drops ----------
+const RUMBLE_ITEMS = ['MAGNET', 'FREEZE', 'OVERDRIVE'];
+let rumbleOn = false;
+let rumbleTimer = 6; // first drop comes quickly, then every 10s
+function grantRumbleItems() {
+  for (const c of state.cars) {
+    if (c.dead || c.item) continue;
+    c.item = RUMBLE_ITEMS[Math.floor(Math.random() * RUMBLE_ITEMS.length)];
+    c.itemAuto = c.isPlayer || c.isPlayer2 ? 0 : 3 + Math.random() * 4; // bots fire on a delay
+  }
+  updateItemLabel();
+}
+function useItem(c) {
+  if (!c.item) return;
+  const item = c.item;
+  c.item = null;
+  if (item === 'MAGNET') c.magnetTimer = 4;
+  if (item === 'FREEZE') { state.ball.freezeTimer = 2; spawnImpactRing(ball.position.clone(), 0x88ddff, 260); }
+  if (item === 'OVERDRIVE') c.overdriveTimer = 8;
+  playBoostPickup();
+  updateItemLabel();
+}
+function updateItemLabel() {
+  const el = document.getElementById('itemLabel');
+  const p = state.player;
+  el.textContent = rumbleOn && p && p.item ? `${p.item} — PRESS E` : '';
+}
+function updateRumble(dt) {
+  if (!rumbleOn) return;
+  rumbleTimer -= dt;
+  if (rumbleTimer <= 0) { grantRumbleItems(); rumbleTimer = 10; }
+  for (const c of state.cars) {
+    if (c.item && c.itemAuto > 0) {
+      c.itemAuto -= dt;
+      if (c.itemAuto <= 0) useItem(c);
+    }
+    if (c.magnetTimer > 0) c.magnetTimer -= dt;
+    if (c.overdriveTimer > 0) { c.overdriveTimer -= dt; c.boost = 100; }
+  }
 }
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
@@ -3915,6 +4016,21 @@ function updateBall(dt) {
   const ballRestitution = arenaData.bounce || 0.65;
   const ballRollFriction = arenaData.ballFriction || 0.996;
 
+  // Rumble FREEZE: the ball hangs where it is until the timer runs out
+  if (b.freezeTimer > 0) {
+    b.freezeTimer -= dt;
+    b.vel.set(0, 0, 0);
+    b.spin.set(0, 0, 0);
+    return; // skip all physics — the ball is locked in place
+  }
+  // Rumble MAGNET: the ball bends toward whoever popped the magnet
+  for (const c of state.cars) {
+    if (c.magnetTimer > 0 && !c.dead) {
+      const pull = c.pos.clone().sub(b.pos);
+      if (pull.length() < 900) b.vel.addScaledVector(pull.normalize(), dt * 2600);
+    }
+  }
+
   // Safety: clamp spin and check for NaN
   b.spin.x = clamp(b.spin.x, -BALL_MAX_SPIN, BALL_MAX_SPIN);
   b.spin.y = clamp(b.spin.y, -BALL_MAX_SPIN, BALL_MAX_SPIN);
@@ -4354,7 +4470,14 @@ function showStatsScreen() {
 document.getElementById('statsContinueBtn').addEventListener('click', () => {
   document.getElementById('statsScreen').style.display = 'none';
   state.gameOver = false;
-  returnToMenu();
+  if (state.tournament) {
+    const headline = applyTournamentResult();
+    state.tournament = false;
+    returnToMenu();
+    showTournamentScreen(headline);
+  } else {
+    returnToMenu();
+  }
 });
 function skipReplay() {
   if (!state.replay.active) return;
@@ -4660,14 +4783,18 @@ function loop(now) {
 
   if (state.running) {
     readGamepad();
+    // In 2P duel the arrow keys belong to player 2, so P1 ignores arrow aliases
+    const p1Key = state.player2
+      ? (a) => keymap[a].some(k => !k.startsWith('Arrow') && keys[k])
+      : keyDown;
     const pIn = {
-      fwd: keyDown('fwd') || touchInput.fwd || padInput.fwd,
-      back: keyDown('back') || touchInput.back || padInput.back,
-      left: keyDown('left') || touchInput.left || padInput.left,
-      right: keyDown('right') || touchInput.right || padInput.right,
-      jump: keyDown('jump') || touchInput.jump || padInput.jump,
-      boost: keyDown('boost') || touchInput.boost || padInput.boost,
-      powerslide: keyDown('powerslide') || touchInput.powerslide || padInput.powerslide,
+      fwd: p1Key('fwd') || touchInput.fwd || padInput.fwd,
+      back: p1Key('back') || touchInput.back || padInput.back,
+      left: p1Key('left') || touchInput.left || padInput.left,
+      right: p1Key('right') || touchInput.right || padInput.right,
+      jump: p1Key('jump') || touchInput.jump || padInput.jump,
+      boost: p1Key('boost') || touchInput.boost || padInput.boost,
+      powerslide: p1Key('powerslide') || touchInput.powerslide || padInput.powerslide,
     };
     // During countdown, freeze physics but let cars rev (visible but not moving)
     const frozen = state.countdown > 0;
@@ -4680,11 +4807,24 @@ function loop(now) {
     if (!frozen) updateCar(state.player, pIn, simDt);
     for (const c of state.cars) {
       if (c.isPlayer) continue;
+      if (c.isPlayer2) {
+        // Player 2: arrows drive/steer, O jump, P boost, I powerslide
+        const p2In = {
+          fwd: keys['ArrowUp'], back: keys['ArrowDown'],
+          left: keys['ArrowLeft'], right: keys['ArrowRight'],
+          jump: keys['KeyO'], boost: keys['KeyP'], powerslide: keys['KeyI'],
+        };
+        c.powerslide = p2In.powerslide;
+        c.speedMul = c.carSpeedMul || 1;
+        if (!frozen) updateCar(c, p2In, simDt);
+        continue;
+      }
       const ai = aiInput(c, dt);
       c.powerslide = ai.powerslide;
       c.speedMul = DIFF[state.difficulty].maxSpeed;
       if (!frozen) updateCar(c, ai, simDt);
     }
+    if (!frozen && !state.replay.active) updateRumble(dt);
     // Only update ball physics if not in celebration or countdown
     if (!state.replay.active && !frozen) {
       updateBall(simDt);
@@ -4720,8 +4860,11 @@ function loop(now) {
       crowdGain.gain.value = 0.05 + crowdJump * 0.3;
     }
 
-    // Only count down timer during active play, not during celebration
-    if (!state.replay.active && state.running) {
+    // Only count down timer during active play, not during celebration.
+    // Free play has no clock at all.
+    if (!state.replay.active && state.running && state.mode === 'free') {
+      timer.textContent = 'FREE';
+    } else if (!state.replay.active && state.running) {
       if (!state.overtime) state.time -= dt;
       if (state.time <= 0 && !state.overtime) {
         state.time = 0;
@@ -4760,6 +4903,10 @@ document.querySelectorAll('#modeRow button').forEach(b => b.addEventListener('cl
 document.querySelectorAll('#diffRow button').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('#diffRow button').forEach(x => x.classList.remove('sel'));
   b.classList.add('sel'); state.difficulty = b.dataset.diff;
+}));
+document.querySelectorAll('#mutatorRow button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#mutatorRow button').forEach(x => x.classList.remove('sel'));
+  b.classList.add('sel'); rumbleOn = b.dataset.mut === 'rumble';
 }));
 // Background theme switching — side button cycles through themes
 const backgrounds = {
@@ -4827,6 +4974,13 @@ function returnToMenu() {
   document.getElementById('skipBtn').style.display = 'none';
   document.getElementById('start').style.display = 'flex';
   bgBtn.style.display = 'block';
+  // Tournament overrides mode/difficulty for its matches — restore whatever
+  // the menu chips still show once we're back
+  state.tournament = false;
+  const modeSel = document.querySelector('#modeRow button.sel');
+  const diffSel = document.querySelector('#diffRow button.sel');
+  if (modeSel) state.mode = modeSel.dataset.mode;
+  if (diffSel) state.difficulty = diffSel.dataset.diff;
   // Reset arena to grass preview when returning to menu
   applyArena('grass');
 }
@@ -5133,7 +5287,7 @@ arenaBackBtn.addEventListener('click', () => {
 // Note: DOM particles removed — the 3D scene now handles all particles (embers)
 
 // START GAME button → apply arena and start
-arenaPlayBtn.addEventListener('click', () => {
+function bootMatch() {
   arenaScreen.style.display = 'none';
   exitBtn.style.display = 'block';
   bgBtn.style.display = 'none'; // menu-only control — hide during the match
@@ -5142,10 +5296,85 @@ arenaPlayBtn.addEventListener('click', () => {
   state.score.blue = 0; state.score.orange = 0; updateScoreUI();
   state.time = 300; state.running = true; state.goalScored = false;
   state.overtime = false; state.lastTouch = null;
-  for (const c of state.cars) { c.stGoals = 0; c.stShots = 0; c.stSaves = 0; c.stTouches = 0; }
+  for (const c of state.cars) { c.stGoals = 0; c.stShots = 0; c.stSaves = 0; c.stTouches = 0; c.item = null; c.magnetTimer = 0; c.overdriveTimer = 0; }
+  state.ball.freezeTimer = 0;
+  rumbleTimer = 6;
+  updateItemLabel();
   state.replayBuffer = [];
   startKickoffCountdown();
-});
+}
+arenaPlayBtn.addEventListener('click', () => { state.tournament = false; bootMatch(); });
+
+// ---------- Tournament: 4-round ladder, progress persisted ----------
+const nkProgress = (() => {
+  try { return JSON.parse(localStorage.getItem('nk-progress')) || {}; } catch { return {}; }
+})();
+function saveProgress() {
+  try { localStorage.setItem('nk-progress', JSON.stringify(nkProgress)); } catch {}
+}
+const TOURNEY_LADDER = [
+  { diff: 'rookie', name: 'QUARTERFINAL', foe: 'Rookie' },
+  { diff: 'pro', name: 'SEMIFINAL', foe: 'Pro' },
+  { diff: 'allstar', name: 'FINAL', foe: 'All-Star' },
+  { diff: 'legendary', name: 'CHAMPIONSHIP', foe: 'Legendary' },
+];
+{
+  const screen = document.getElementById('tournamentScreen');
+  const startScreen = document.getElementById('start');
+  const playBtnT = document.getElementById('tournamentPlayBtn');
+  function renderBracket(headline) {
+    const round = nkProgress.round || 0;
+    document.getElementById('champBadge').textContent =
+      headline || (nkProgress.champs ? `CHAMPION ×${nkProgress.champs}` : '');
+    const list = document.getElementById('bracketList');
+    list.innerHTML = '';
+    TOURNEY_LADDER.forEach((r, i) => {
+      const row = document.createElement('div');
+      row.className = 'bracket-row' + (i < round ? ' done' : i === round ? ' next' : '');
+      row.innerHTML = `<span class="rname">${r.name}</span><span class="rstate">${
+        i < round ? 'WON ✓' : i === round ? `vs ${r.foe} — up next` : `vs ${r.foe}`}</span>`;
+      list.appendChild(row);
+    });
+    playBtnT.textContent = `PLAY ${TOURNEY_LADDER[round].name}`;
+  }
+  window.showTournamentScreen = (headline) => {
+    startScreen.style.display = 'none';
+    screen.style.display = 'flex';
+    renderBracket(headline);
+  };
+  document.getElementById('tournamentBtn').addEventListener('click', () => showTournamentScreen());
+  document.getElementById('tournamentBackBtn').addEventListener('click', () => {
+    screen.style.display = 'none';
+    startScreen.style.display = 'flex';
+  });
+  playBtnT.addEventListener('click', () => {
+    const round = nkProgress.round || 0;
+    screen.style.display = 'none';
+    state.tournament = true;
+    state.mode = '1v1';
+    state.difficulty = TOURNEY_LADDER[round].diff;
+    selectedArena = arenaKeys[Math.floor(Math.random() * arenaKeys.length)];
+    bootMatch();
+  });
+}
+// Tournament result — called when the player leaves the stats board
+function applyTournamentResult() {
+  const won = state.score.blue > state.score.orange;
+  if (won) {
+    nkProgress.round = (nkProgress.round || 0) + 1;
+    if (nkProgress.round >= TOURNEY_LADDER.length) {
+      nkProgress.round = 0;
+      nkProgress.champs = (nkProgress.champs || 0) + 1;
+      saveProgress();
+      return '🏆 TOURNAMENT CHAMPION! 🏆';
+    }
+    saveProgress();
+    return 'VICTORY — ADVANCE TO THE NEXT ROUND';
+  }
+  nkProgress.round = 0;
+  saveProgress();
+  return 'ELIMINATED — THE LADDER RESETS';
+}
 
 // ---------- Garage (car selection) ----------
 const garageScreen = document.getElementById('garageScreen');
