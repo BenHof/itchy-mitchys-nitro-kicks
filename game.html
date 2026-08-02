@@ -2878,13 +2878,44 @@ const ballLight = new THREE.PointLight(0xffffff, 0, 2500, 1.5);
 ballLight.position.set(0, BALL_R, 0);
 scene.add(ballLight);
 
-// ---------- Audio (off by default) ----------
+// ---------- Persistent settings ----------
+const nkSettings = (() => {
+  try { return JSON.parse(localStorage.getItem('nk-settings')) || {}; } catch { return {}; }
+})();
+function saveSettings() {
+  try { localStorage.setItem('nk-settings', JSON.stringify(nkSettings)); } catch {}
+}
+
+// ---------- Audio (on by default; persisted) ----------
 let audioCtx = null, engineOsc = null, engineOsc2 = null, engineGain = null, boostGain = null, masterGain = null;
-let muted = true;
+let crowdGain = null, musicGain = null, musicFilter = null;
+let muted = nkSettings.muted ?? false;
+let musicOn = nkSettings.music ?? true;
+let announcerOn = nkSettings.announcer ?? false;
 function initAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   masterGain = audioCtx.createGain(); masterGain.gain.value = 0.4; masterGain.connect(audioCtx.destination);
+  // Crowd ambience: looping soft noise bed; gain swells with crowdJump on goals
+  {
+    const len = audioCtx.sampleRate * 3;
+    const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < len; i++) { // brown-ish noise reads as distant crowd
+      last = (last + (Math.random() * 2 - 1) * 0.04) * 0.985;
+      data[i] = last * 6;
+    }
+    const src = audioCtx.createBufferSource(); src.buffer = buf; src.loop = true;
+    const lp = audioCtx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 640;
+    crowdGain = audioCtx.createGain(); crowdGain.gain.value = 0;
+    src.connect(lp); lp.connect(crowdGain); crowdGain.connect(masterGain); src.start();
+  }
+  // Music bus: sequencer notes route through a lowpass we can close in-match
+  musicFilter = audioCtx.createBiquadFilter(); musicFilter.type = 'lowpass'; musicFilter.frequency.value = 9000;
+  musicGain = audioCtx.createGain(); musicGain.gain.value = 0;
+  musicFilter.connect(musicGain); musicGain.connect(masterGain);
+  startMusic();
   // Engine: two oscillators (sawtooth + square) through a lowpass filter for richer engine sound
   engineOsc = audioCtx.createOscillator(); engineOsc.type = 'sawtooth'; engineOsc.frequency.value = 60;
   engineOsc2 = audioCtx.createOscillator(); engineOsc2.type = 'square'; engineOsc2.frequency.value = 90;
@@ -2961,6 +2992,61 @@ function playDemo() {
   const g = audioCtx.createGain(); g.gain.setValueAtTime(0.5, t);
   g.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
   o.connect(g); g.connect(masterGain); o.start(t); o.stop(t + 0.6);
+}
+function playCountBeep(final) {
+  if (!audioCtx || muted) return;
+  const t = audioCtx.currentTime;
+  const o = audioCtx.createOscillator(); o.type = 'square'; o.frequency.value = final ? 880 : 440;
+  const g = audioCtx.createGain(); g.gain.setValueAtTime(0.12, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + (final ? 0.4 : 0.12));
+  o.connect(g); g.connect(masterGain); o.start(t); o.stop(t + (final ? 0.42 : 0.14));
+}
+
+// ---------- Procedural synthwave music (16-step lookahead sequencer) ----------
+// A-minor two-bar loop: kick on quarters, offbeat hats, driving 8th-note bass,
+// and a sparse echoed arp. Notes route through musicFilter -> musicGain.
+let musicTimer = null, musicStep = 0, musicNextT = 0;
+const MUSIC_SPB = 60 / 118 / 2; // seconds per 8th note at 118 BPM
+const BASS_SEQ = [55, 55, 82.4, 55, 65.4, 65.4, 98, 65.4, 73.4, 73.4, 110, 73.4, 61.7, 61.7, 92.5, 61.7];
+const ARP_SEQ = [440, 0, 523.3, 0, 659.3, 0, 523.3, 0, 587.3, 0, 440, 0, 493.9, 0, 392, 0];
+function musicNote(type, freq, t, dur, vol, dest) {
+  const o = audioCtx.createOscillator(); o.type = type; o.frequency.value = freq;
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g); g.connect(dest || musicFilter); o.start(t); o.stop(t + dur + 0.02);
+}
+function startMusic() {
+  if (musicTimer || !audioCtx) return;
+  musicNextT = audioCtx.currentTime + 0.1;
+  musicTimer = setInterval(() => {
+    if (!audioCtx) return;
+    while (musicNextT < audioCtx.currentTime + 0.3) {
+      const t = musicNextT, s = musicStep;
+      // kick on quarter notes: sine drop
+      if (s % 4 === 0) musicNote('sine', 120, t, 0.18, 0.5);
+      // hat on offbeats: short high square (stands in for noise, cheap)
+      if (s % 2 === 1) musicNote('square', 7000, t, 0.03, 0.03);
+      musicNote('sawtooth', BASS_SEQ[s], t, MUSIC_SPB * 0.9, 0.16);
+      if (ARP_SEQ[s]) {
+        musicNote('square', ARP_SEQ[s], t, 0.1, 0.05);
+        musicNote('square', ARP_SEQ[s], t + MUSIC_SPB * 1.5, 0.08, 0.02); // echo
+      }
+      musicStep = (musicStep + 1) % 16;
+      musicNextT += MUSIC_SPB;
+    }
+  }, 120);
+}
+
+// ---------- Announcer (SpeechSynthesis, off by default) ----------
+function announce(text) {
+  if (!announcerOn || muted || !('speechSynthesis' in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.15; u.pitch = 1.05; u.volume = 0.9;
+    speechSynthesis.speak(u);
+  } catch {}
 }
 
 // ---------- State ----------
@@ -3108,13 +3194,30 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyC') { state.camMode = (state.camMode + 1) % 2; camlabel.textContent = state.camMode === 0 ? 'BALL CAM' : 'CAR CAM'; }
   if (e.code === 'KeyM') {
     muted = !muted;
-    soundlabel.textContent = muted ? 'SOUND: OFF' : 'SOUND: ON';
-    soundlabel.style.color = muted ? '#888' : '#ffd34a';
+    nkSettings.muted = muted; saveSettings();
+    updateSoundLabel();
     if (!muted && !audioCtx) initAudio();
-    if (muted && audioCtx) { engineGain.gain.value = 0; boostGain.gain.value = 0; }
+    if (muted && audioCtx) { engineGain.gain.value = 0; boostGain.gain.value = 0; crowdGain.gain.value = 0; musicGain.gain.value = 0; }
   }
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
+
+function updateSoundLabel() {
+  soundlabel.textContent = muted ? 'SOUND: OFF' : 'SOUND: ON';
+  soundlabel.style.color = muted ? '#888' : '#ffd34a';
+}
+updateSoundLabel();
+
+// Browsers block AudioContext until a user gesture — arm it on the first
+// click/keypress so sound-on-by-default actually produces sound.
+function armAudio() {
+  if (!muted) {
+    initAudio();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+}
+addEventListener('pointerdown', armAudio, { once: false });
+addEventListener('keydown', armAudio, { once: false });
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
   composer.setSize(innerWidth, innerHeight);
@@ -3219,6 +3322,7 @@ function startKickoffCountdown() {
   state.countdown = 3;
   // Ball respawns at countdown 3 (already set above) and again at countdown 1
   showMsg('3', 1, true);
+  playCountBeep(false);
   state.countdownInterval = setInterval(() => {
     state.countdown--;
     // Respawn ball at center when countdown hits 1
@@ -3230,11 +3334,13 @@ function startKickoffCountdown() {
     }
     if (state.countdown > 0) {
       showMsg(String(state.countdown), 1, true);
+      playCountBeep(false);
     } else {
       clearInterval(state.countdownInterval);
       state.countdownInterval = null;
       state.countdown = 0;
       showMsg('GO!', 1, true);
+      playCountBeep(true);
       state.goalScored = false; // ball is now live
     }
   }, 1000);
@@ -3320,6 +3426,7 @@ const TURN = 2.4, JUMP_V = 260, DODGE_FORCE = 660, DODGE_UP = 80;
 const FRICTION_GROUND = 0.96, FRICTION_AIR = 0.995;
 
 function updateCar(c, input, dt) {
+  const fallVy = c.vel.y; // vertical speed before ground resolution, for landing dust
   if (c.dead) {
     c.respawnTimer -= dt;
     if (c.respawnTimer <= 0) resetCar(c, c.spawn.x, c.spawn.z, c.spawn.yaw);
@@ -3550,6 +3657,21 @@ function updateCar(c, input, dt) {
       spawnImpactRing(p.core.position, 0xffd34a, p.big ? 200 : 90);
       playBoostPickup();
     }
+  }
+
+  // Landing dust: a puff of gray particles when slamming down from a jump/aerial
+  if (c.onGround && c.wasOnGround === false && fallVy < -260) {
+    for (let i = 0; i < 5; i++) {
+      spawnBoostTrail(c.pos.clone().add(new THREE.Vector3(
+        (Math.random() - 0.5) * CAR.w * 1.8, 6, (Math.random() - 0.5) * CAR.l * 1.4)), 0x9a9a9a);
+    }
+  }
+  c.wasOnGround = c.onGround;
+  // Powerslide skid smoke from the rear wheels
+  if (c.onGround && input.powerslide && c.vel.length() > 500 && Math.random() < 0.6) {
+    const rear = c.pos.clone().addScaledVector(new THREE.Vector3(Math.sin(c.yaw), 0, Math.cos(c.yaw)), -CAR.l * 0.5);
+    rear.y += 6;
+    spawnBoostTrail(rear, 0xaaaaaa);
   }
 
   // update mesh
@@ -3789,6 +3911,11 @@ function carBallCollision(c, isBoosting) {
         const contact = carCenter.clone().addScaledVector(n, CAR.radius);
         spawnImpactRing(contact, isBoosting ? 0xffd34a : teamColor(c.team), 90 + hitPower * 320);
       }
+      // Power shots earn a hit-stop beat and a camera FOV punch
+      if (hitPower > 0.5) {
+        state.hitstop = 0.09;
+        state.fovKick = Math.min(1, hitPower);
+      }
       // Camera shake on big hits
       if (Math.abs(vn) > 300) cameraShake = Math.min(1.0, Math.abs(vn) / 800);
     }
@@ -3934,6 +4061,7 @@ function scoreGoal(team) {
   updateScoreUI();
   showMsg(team === 'blue' ? 'GOAL! BLUE SCORES' : 'GOAL! RED SCORES', 3, true);
   playGoalHorn();
+  announce(team === 'blue' ? 'Goal! Blue scores!' : 'Goal! Red scores!');
   // Start replay playback: play back the recorded buffer in slow motion
   state.replay.active = true;
   state.replay.playing = true;
@@ -4125,6 +4253,13 @@ const camPosTarget = new THREE.Vector3();
 const camLookTarget = new THREE.Vector3();
 let cameraShake = 0;
 function updateCamera(dt) {
+  // FOV punch on power shots: snap wide, ease back
+  state.fovKick = Math.max(0, (state.fovKick || 0) - dt * 4);
+  const targetFov = 75 + state.fovKick * 7;
+  if (Math.abs(camera.fov - targetFov) > 0.01) {
+    camera.fov = targetFov;
+    camera.updateProjectionMatrix();
+  }
   if (state.replay.active) {
     // Cinematic replay camera: slow sweep around the action, tracking the ball
     const totalFrames = state.replay.frames.length || 1;
@@ -4249,6 +4384,12 @@ function loop(now) {
     crowdMat.userData.shader.uniforms.uTime.value = now / 1000;
     crowdMat.userData.shader.uniforms.uJump.value = crowdJump;
   }
+  // Music: full and bright on the menu, quieter and low-passed during play
+  if (audioCtx && musicGain) {
+    const target = (muted || !musicOn) ? 0 : (state.running ? 0.05 : 0.1);
+    musicGain.gain.value += (target - musicGain.gain.value) * Math.min(1, dt * 3);
+    musicFilter.frequency.value = state.running ? 1100 : 9000;
+  }
 
   if (state.running) {
     const pIn = {
@@ -4262,19 +4403,23 @@ function loop(now) {
     };
     // During countdown, freeze physics but let cars rev (visible but not moving)
     const frozen = state.countdown > 0;
+    // Hit-stop: crush the physics timestep for a beat after power shots so big
+    // touches land with weight. Camera/UI/VFX keep running on real dt.
+    let simDt = dt;
+    if (state.hitstop > 0) { state.hitstop -= dt; simDt = dt * 0.12; }
     state.player.powerslide = pIn.powerslide;
     state.player.speedMul = state.player.carSpeedMul || 1;
-    if (!frozen) updateCar(state.player, pIn, dt);
+    if (!frozen) updateCar(state.player, pIn, simDt);
     for (const c of state.cars) {
       if (c.isPlayer) continue;
       const ai = aiInput(c, dt);
       c.powerslide = ai.powerslide;
       c.speedMul = DIFF[state.difficulty].maxSpeed;
-      if (!frozen) updateCar(c, ai, dt);
+      if (!frozen) updateCar(c, ai, simDt);
     }
     // Only update ball physics if not in celebration or countdown
     if (!state.replay.active && !frozen) {
-      updateBall(dt);
+      updateBall(simDt);
       for (const c of state.cars) carBallCollision(c, c.isBoosting);
       carCarCollisions();
       // Record a replay frame after physics so the snapshot is current
@@ -4301,6 +4446,10 @@ function loop(now) {
       engineGain.gain.value = 0.04 + Math.min(0.08, sp * 0.0008);
       const boosting = (pIn.boost && state.player.boost > 0) ? 1 : 0;
       boostGain.gain.value = boosting * 0.15;
+    }
+    if (audioCtx && !muted && crowdGain) {
+      // Crowd murmurs during play and roars on goals (crowdJump drives the swell)
+      crowdGain.gain.value = 0.05 + crowdJump * 0.3;
     }
 
     // Only count down timer during active play, not during celebration
