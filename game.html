@@ -146,6 +146,20 @@
   .remap-row button { padding: 6px 14px; min-width: 110px; min-height: 36px; font-family: var(--font-display); font-size: 12px; font-weight: 700; border: 1.5px solid rgba(255,255,255,0.2); border-radius: 10px; background: rgba(255,255,255,0.04); color: var(--accent); cursor: pointer; }
   .remap-row button.listening { border-color: var(--accent); color: var(--text); animation: hintPulse 1s ease-in-out infinite; }
 
+  /* ===== Post-match stats ===== */
+  #statsScreen { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: var(--z-modal); background: rgba(5,5,8,0.82); backdrop-filter: blur(6px); }
+  #statsScreen h2 { font-family: var(--font-display); font-size: 42px; letter-spacing: 5px; font-weight: 900; margin: 0 0 18px; text-shadow: 0 0 24px rgba(255,211,74,0.45); }
+  #statsTable { border-collapse: collapse; width: 100%; font-size: 16px; }
+  #statsTable th { font-family: var(--font-display); font-size: 11px; letter-spacing: 2px; opacity: 0.5; text-transform: uppercase; padding: 6px 14px; text-align: center; }
+  #statsTable td { padding: 8px 14px; text-align: center; border-top: 1px solid rgba(255,255,255,0.07); }
+  #statsTable td:first-child { text-align: left; font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: 1px; }
+  #statsTable tr.mvp td { color: var(--accent); }
+  #statsTable tr.mvp td:first-child::after { content: ' ★ MVP'; font-size: 11px; }
+  #statsTable tr.blue-row td:first-child { color: var(--blue); }
+  #statsTable tr.red-row td:first-child { color: var(--red); }
+  #statsTable tr.mvp.blue-row td:first-child, #statsTable tr.mvp.red-row td:first-child { color: var(--accent); }
+  #statsContinueBtn { margin: 22px auto 0; display: block; padding: 13px 46px; min-height: 44px; font-family: var(--font-display); font-size: 16px; font-weight: 900; border: none; border-radius: 24px; background: linear-gradient(135deg, var(--accent), var(--accent-warm)); color: var(--void); cursor: pointer; letter-spacing: 3px; }
+
   /* ===== Touch controls ===== */
   #touchUI { display: none; position: fixed; inset: 0; z-index: var(--z-hud); pointer-events: none; }
   #stickZone { position: absolute; left: 0; bottom: 0; width: 45%; height: 55%; pointer-events: auto; touch-action: none; }
@@ -262,6 +276,17 @@
     </div>
     <div class="lbl">CONTROLS — CLICK TO REBIND</div>
     <div id="remapList"></div>
+  </div>
+</div>
+
+<div id="statsScreen">
+  <h2 id="statsTitle">FULL TIME</h2>
+  <div class="settings-panel">
+    <table id="statsTable">
+      <thead><tr><th></th><th>Goals</th><th>Shots</th><th>Saves</th><th>Touches</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <button id="statsContinueBtn">CONTINUE</button>
   </div>
 </div>
 
@@ -1105,6 +1130,19 @@ ballShadow.rotation.x = -Math.PI / 2;
 ballShadow.position.y = 1.2;
 ballShadow.renderOrder = 1;
 scene.add(ballShadow);
+
+// Landing indicator: where the airborne ball will touch down (gravity-only
+// prediction — good enough to line up aerial reads like Rocket League's marker).
+// Unit-size geometry, scaled to the ball at runtime (BALL_R is declared later).
+const landingRing = new THREE.Mesh(
+  new THREE.RingGeometry(0.8, 1.0, 36),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false })
+);
+landingRing.rotation.x = -Math.PI / 2;
+landingRing.position.y = 2.4;
+landingRing.renderOrder = 1;
+landingRing.visible = false;
+scene.add(landingRing);
 
 // ---------- Floodlight system ----------
 // Tower structures live in towerGroup (always visible — they are stadium
@@ -3118,7 +3156,9 @@ const state = {
   replayBuffer: [],
   explosions: [],
   countdown: 0, countdownInterval: null,
+  overtime: false, lastTouch: null, hitstop: 0, fovKick: 0,
 };
+window.__gfx.state = state; // diagnostics/testing handle
 
 // Soft radial contact-shadow texture, shared by all cars
 const contactBlobTex = (() => {
@@ -3991,6 +4031,18 @@ function updateBall(dt) {
   ballShadow.material.opacity = Math.max(0.1, 0.85 - b.pos.y * 0.00055);
   // Supersonic streak — the ball leaves a golden trail on power shots
   if (ballSpeed > 2300) spawnBoostTrail(b.pos, 0xffe9a0);
+  // Landing indicator for aerial reads
+  if (b.pos.y > BALL_R * 3) {
+    const y0 = b.pos.y - BALL_R;
+    const tLand = (b.vel.y + Math.sqrt(b.vel.y * b.vel.y + 2 * GRAVITY * y0)) / GRAVITY;
+    landingRing.visible = true;
+    landingRing.position.x = clamp(b.pos.x + b.vel.x * tLand, -ARENA.w / 2, ARENA.w / 2);
+    landingRing.position.z = clamp(b.pos.z + b.vel.z * tLand, -ARENA.l / 2, ARENA.l / 2);
+    const pulse = BALL_R * 1.3 * (1 + Math.sin(performance.now() * 0.009) * 0.1);
+    landingRing.scale.set(pulse, pulse, 1);
+  } else {
+    landingRing.visible = false;
+  }
   // Visual roll based on velocity + spin
   b.ang.x += (b.vel.z * 0.01 + b.spin.x * dt * 0.3) * dt * 60;
   b.ang.y += b.spin.y * dt * 0.3;
@@ -4027,6 +4079,10 @@ function carBallCollision(c, isBoosting) {
     const relV = state.ball.vel.clone().sub(c.vel);
     const vn = relV.dot(n);
     if (vn < 0) {
+      // Pre-hit trajectory, for shot/save stats
+      const ownGoalZ = c.team === 'blue' ? -ARENA.l / 2 : ARENA.l / 2;
+      const wasThreat = state.ball.vel.z * Math.sign(ownGoalZ) > 300 &&
+        Math.abs(state.ball.pos.z - ownGoalZ) < 1800;
       // Boosting hits the ball much harder
       const boostMul = isBoosting ? 2.4 : 1.0;
       const impulse = -2.8 * vn * boostMul;
@@ -4057,6 +4113,13 @@ function carBallCollision(c, isBoosting) {
         state.hitstop = 0.09;
         state.fovKick = Math.min(1, hitPower);
       }
+      // Match stats: touches always; shots when the ball leaves fast toward the
+      // opponent goal; saves when a threat on our own goal is turned away
+      state.lastTouch = c;
+      c.stTouches = (c.stTouches || 0) + 1;
+      const towardOpp = state.ball.vel.z * Math.sign(-ownGoalZ) > 0;
+      if (towardOpp && state.ball.vel.length() > 1600) c.stShots = (c.stShots || 0) + 1;
+      if (wasThreat && !(state.ball.vel.z * Math.sign(ownGoalZ) > 0)) c.stSaves = (c.stSaves || 0) + 1;
       // Camera shake on big hits
       if (Math.abs(vn) > 300) cameraShake = Math.min(1.0, Math.abs(vn) / 800);
     }
@@ -4085,7 +4148,11 @@ function carCarCollisions() {
           b.vel.addScaledVector(n, imp);
           const fast = a.vel.length() > b.vel.length() ? a : b;
           const slow = fast === a ? b : a;
-          if (fast.vel.length() > 1200 && slow.vel.length() < fast.vel.length() * 0.7) demoCar(slow);
+          if (fast.vel.length() > 1200 && slow.vel.length() < fast.vel.length() * 0.7) {
+            demoCar(slow);
+            // Demolitions pay out boost — bumps become a real play, not a whiff
+            if (fast.team !== slow.team) fast.boost = Math.min(100, fast.boost + 25);
+          }
         }
       }
     }
@@ -4199,6 +4266,10 @@ function scoreGoal(team) {
   if (state.goalScored) return;   // prevent double-counting before kickoff resets
   state.goalScored = true;
   if (team === 'blue') state.score.blue++; else state.score.orange++;
+  // Credit the scorer (own goals credit nobody)
+  if (state.lastTouch && state.lastTouch.team === team) {
+    state.lastTouch.stGoals = (state.lastTouch.stGoals || 0) + 1;
+  }
   updateScoreUI();
   showMsg(team === 'blue' ? 'GOAL! BLUE SCORES' : 'GOAL! RED SCORES', 3, true);
   playGoalHorn();
@@ -4229,13 +4300,67 @@ function scoreGoal(team) {
   const replayDuration = Math.min(rawDuration, 3.0);
   document.getElementById('skipBtn').style.display = 'block';
   if (state.replayTimeout) clearTimeout(state.replayTimeout);
-  state.replayTimeout = setTimeout(startKickoffCountdown, replayDuration * 1000);
+  state.replayTimeout = setTimeout(afterReplay, replayDuration * 1000);
 }
+// Golden-goal overtime ends at the replay instead of kicking off again
+function afterReplay() {
+  if (state.overtime) endMatch();
+  else startKickoffCountdown();
+}
+
+// ---------- Match end: winner banner, then the stats board ----------
+function endMatch() {
+  state.running = false;
+  state.gameOver = true;
+  state.overtime = false;
+  state.replay.active = false;
+  state.replay.playing = false;
+  document.getElementById('skipBtn').style.display = 'none';
+  const w = state.score.blue > state.score.orange ? 'BLUE WINS!' :
+            state.score.orange > state.score.blue ? 'RED WINS!' : 'DRAW!';
+  showMsg(w, 3, true);
+  announce(w);
+  crowdJump = 1;
+  setTimeout(showStatsScreen, 1800);
+}
+
+function carDisplayName(c) {
+  if (c.isPlayer) return 'YOU';
+  const mates = state.cars.filter(x => x.team === c.team && !x.isPlayer);
+  const n = mates.indexOf(c) + 1;
+  return `${c.team === 'blue' ? 'BLUE' : 'RED'} BOT ${mates.length > 1 ? n : ''}`.trim();
+}
+
+function showStatsScreen() {
+  msg.style.opacity = 0;
+  const tbody = document.querySelector('#statsTable tbody');
+  tbody.innerHTML = '';
+  // MVP: weighted contribution across every car in the match
+  const mvpScore = c => (c.stGoals || 0) * 100 + (c.stSaves || 0) * 60 + (c.stShots || 0) * 40 + (c.stTouches || 0) * 5;
+  let mvp = null;
+  for (const c of state.cars) if (!mvp || mvpScore(c) > mvpScore(mvp)) mvp = c;
+  const ordered = [...state.cars].sort((a, b) => (a.team === b.team ? 0 : a.team === 'blue' ? -1 : 1) || mvpScore(b) - mvpScore(a));
+  for (const c of ordered) {
+    const tr = document.createElement('tr');
+    tr.className = (c.team === 'blue' ? 'blue-row' : 'red-row') + (c === mvp && mvpScore(mvp) > 0 ? ' mvp' : '');
+    tr.innerHTML = `<td>${carDisplayName(c)}</td><td>${c.stGoals || 0}</td><td>${c.stShots || 0}</td><td>${c.stSaves || 0}</td><td>${c.stTouches || 0}</td>`;
+    tbody.appendChild(tr);
+  }
+  document.getElementById('statsTitle').textContent =
+    state.score.blue === state.score.orange ? `DRAW ${state.score.blue}–${state.score.orange}` :
+    `${state.score.blue > state.score.orange ? 'BLUE WINS' : 'RED WINS'} ${state.score.blue}–${state.score.orange}`;
+  document.getElementById('statsScreen').style.display = 'flex';
+}
+document.getElementById('statsContinueBtn').addEventListener('click', () => {
+  document.getElementById('statsScreen').style.display = 'none';
+  state.gameOver = false;
+  returnToMenu();
+});
 function skipReplay() {
   if (!state.replay.active) return;
   if (state.replayTimeout) { clearTimeout(state.replayTimeout); state.replayTimeout = null; }
   document.getElementById('skipBtn').style.display = 'none';
-  startKickoffCountdown();
+  afterReplay();
 }
 function updateScoreUI() {
   document.querySelector('#score .blue').textContent = state.score.blue;
@@ -4597,22 +4722,24 @@ function loop(now) {
 
     // Only count down timer during active play, not during celebration
     if (!state.replay.active && state.running) {
-      state.time -= dt;
-      if (state.time <= 0) {
-        state.time = 0; state.running = false; state.gameOver = true;
-        const w = state.score.blue > state.score.orange ? 'BLUE WINS!' : state.score.orange > state.score.blue ? 'RED WINS!' : 'DRAW!';
-        showMsg(w, 4, true);
-        // After the winner banner, return to the home screen
-        setTimeout(() => {
-          msg.style.opacity = 0;
-          exitBtn.style.display = 'none';
-          document.getElementById('start').style.display = 'flex';
-          bgBtn.style.display = 'block';
-          state.gameOver = false;
-        }, 4200);
+      if (!state.overtime) state.time -= dt;
+      if (state.time <= 0 && !state.overtime) {
+        state.time = 0;
+        if (state.score.blue === state.score.orange) {
+          // Tied at the horn: golden-goal overtime
+          state.overtime = true;
+          showMsg('OVERTIME · GOLDEN GOAL', 3, true);
+          announce('Overtime! Next goal wins!');
+        } else {
+          endMatch();
+        }
       }
-      const m = Math.floor(state.time / 60), s = Math.floor(state.time % 60);
-      timer.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+      if (state.overtime) {
+        timer.textContent = 'OT';
+      } else {
+        const m = Math.floor(state.time / 60), s = Math.floor(state.time % 60);
+        timer.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+      }
     }
     if (state.msgTimer > 0) { state.msgTimer -= dt; if (state.msgTimer <= 0) msg.style.opacity = 0; }
   }
@@ -5014,6 +5141,8 @@ arenaPlayBtn.addEventListener('click', () => {
   applyArena(selectedArena);
   state.score.blue = 0; state.score.orange = 0; updateScoreUI();
   state.time = 300; state.running = true; state.goalScored = false;
+  state.overtime = false; state.lastTouch = null;
+  for (const c of state.cars) { c.stGoals = 0; c.stShots = 0; c.stSaves = 0; c.stTouches = 0; }
   state.replayBuffer = [];
   startKickoffCountdown();
 });
