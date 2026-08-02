@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Boost Ball — Itchy Mitchy</title>
+<title>Itchy Mitchy's Nitro Kicks</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -80,7 +80,10 @@
     90%  { transform: scale(1.05) translateY(-30px); }
     100% { transform: scale(1.0) translateY(0); }
   }
-  #controls { position: fixed; bottom: 30px; left: 30px; font-size: 13px; line-height: 1.7; opacity: 0.7; background: rgba(0,0,0,0.35); padding: 12px 16px; border-radius: 10px; z-index: var(--z-hud); }
+  #controls { position: fixed; bottom: 30px; left: 30px; font-size: 13px; line-height: 1.7; opacity: 0.7; background: rgba(0,0,0,0.35); padding: 12px 16px; border-radius: 10px; z-index: var(--z-hud); transition: opacity 0.8s ease; pointer-events: auto; }
+  /* The legend earns its keep for the first moments, then gets out of the way */
+  #controls.faded { opacity: 0.12; }
+  #controls:hover { opacity: 0.9; }
   #controls b { color: var(--accent); }
   #camlabel { position: fixed; top: 90px; right: 30px; font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--accent); background: rgba(0,0,0,0.35); padding: 6px 12px; border-radius: 8px; letter-spacing: 1px; z-index: var(--z-hud); }
   #soundlabel { position: fixed; top: 130px; right: 30px; font-family: var(--font-display); font-size: 13px; font-weight: 700; color: #888; background: rgba(0,0,0,0.35); padding: 6px 12px; border-radius: 8px; letter-spacing: 1px; z-index: var(--z-hud); }
@@ -102,6 +105,7 @@
     #soundlabel { top: 92px; right: 12px; font-size: 10px; padding: 4px 8px; }
     #boostbar { width: 140px; height: 14px; bottom: 18px; right: 14px; }
     #boostlabel { bottom: 36px; right: 14px; font-size: 10px; }
+
   }
   #ballarrow { position: fixed; top: 50%; left: 50%; width: 0; height: 0; display: none; pointer-events: none; z-index: var(--z-hud); }
 
@@ -118,12 +122,17 @@
   @keyframes barExpand { from { width: 0; opacity: 0; } to { width: 280px; opacity: 1; } }
   @keyframes barPulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
   .title-sub { font-family: var(--font-display); font-size: 13px; letter-spacing: 10px; opacity: 0.5; text-transform: uppercase; margin-bottom: 28px; margin-top: 6px; animation: fadeInUp 1s var(--ease-out) 0.5s both; }
+  .title-kicker { font-family: var(--font-display); font-size: 16px; font-weight: 700; letter-spacing: 7px; color: var(--accent); text-align: center; margin-bottom: 4px; text-shadow: 0 0 18px rgba(255,211,74,0.5); animation: fadeInUp 1s var(--ease-out) 0.1s both; }
   @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: var(--opacity-target, 1); transform: translateY(0); } }
   .menu-panel { background: rgba(10,10,22,0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 24px 36px; animation: fadeInUp 1s var(--ease-out) 0.7s both; box-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05); }
   #start p { opacity: 0.9; margin: 4px 0; color: var(--text); }
   .lbl { margin-top: 16px; font-family: var(--font-display); font-size: 11px; letter-spacing: 3px; opacity: 0.4; text-transform: uppercase; }
   .lbl:first-child { margin-top: 0; }
   .optrow { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; justify-content: center; max-width: 460px; }
+  /* Six mode chips settle into a tidy 3x2 grid instead of an orphaned wrap */
+  #modeRow { display: grid; grid-template-columns: repeat(3, 1fr); max-width: 400px; margin-left: auto; margin-right: auto; }
+  /* Difficulty is meaningless in 2P Duel and Free Play — dim it, don't hide it */
+  .optrow.dimmed { opacity: 0.3; pointer-events: none; filter: saturate(0.3); transition: opacity var(--dur-mid) ease; }
   .optrow button { padding: 9px 16px; min-height: 44px; font-family: var(--font-display); font-size: 13px; font-weight: 700; border: 1.5px solid rgba(255,255,255,0.15); border-radius: 14px; background: rgba(255,255,255,0.03); color: var(--text); cursor: pointer; pointer-events: auto; transition: all var(--dur-mid) var(--ease-out); }
   .optrow button:hover { border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.08); transform: translateY(-2px); }
   .optrow button.sel { background: linear-gradient(135deg, rgba(74,168,255,0.3), rgba(37,99,235,0.2)); border-color: var(--blue); color: var(--text); box-shadow: 0 4px 16px rgba(74,168,255,0.3); }
@@ -183,7 +192,7 @@
   .tbtn { width: 82px; height: 82px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); background: rgba(10,10,25,0.4); color: var(--text); font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: 1px; touch-action: none; user-select: none; -webkit-user-select: none; }
   .tbtn:active, .tbtn.held { background: rgba(255,211,74,0.35); border-color: var(--accent); }
   .tbtn.small { width: 82px; height: 54px; border-radius: 27px; font-size: 11px; }
-  #arenaGrid, #garageGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; max-width: 1200px; width: 100%; justify-content: center; }
+  #arenaGrid, #garageGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; max-width: 1200px; width: 100%; justify-content: center; padding-bottom: 96px; /* keep the sticky START GAME button off the last row */ }
   .carDesc { position: absolute; top: 6px; left: 0; right: 0; text-align: center; font-size: 11px; opacity: 0.7; padding: 0 8px; pointer-events: none; }
   .arenaCard { width: 100%; height: 140px; border: 3px solid rgba(255,255,255,0.2); border-radius: 16px; cursor: pointer; overflow: hidden; position: relative; transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast); }
   .arenaCard:hover { transform: scale(1.05); border-color: var(--accent); }
@@ -202,6 +211,20 @@
   .back-btn:hover { background: rgba(255,255,255,0.1); }
   .select-btn { margin-top: 10px; padding: 12px 40px; min-height: 44px; font-family: var(--font-display); font-size: 16px; font-weight: 700; border: none; border-radius: 26px; background: var(--accent); color: var(--void); cursor: pointer; transition: all var(--dur-mid) var(--ease-out); }
   .select-btn:hover { background: #ffe070; transform: translateY(-2px); }
+
+  /* ===== Mobile start menu (last in the sheet so it wins the cascade) ===== */
+  @media (max-width: 760px) {
+    #start { justify-content: flex-start; overflow-y: auto; padding: 56px 0 24px; }
+    #start h1 { font-size: clamp(38px, 11vw, 56px); letter-spacing: 4px; }
+    .title-kicker { font-size: 12px; letter-spacing: 4px; }
+    .title-sub { font-size: 10px; letter-spacing: 4px; margin-bottom: 16px; }
+    .title-bar { width: 180px; }
+    .menu-panel { padding: 16px 18px; margin: 0 12px; }
+    .optrow button { padding: 8px 10px; font-size: 12px; min-height: 40px; }
+    #playBtn { padding: 13px 44px; font-size: 18px; margin-top: 16px; }
+    #bgBtn { top: 10px; right: 10px; padding: 6px 12px; font-size: 11px; min-height: 36px; }
+    .start-hint { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -232,10 +255,11 @@
   <canvas id="startBgCanvas"></canvas>
   <div class="start-content">
     <div class="title-wrap">
-      <h1>BOOST BALL</h1>
+      <div class="title-kicker">ITCHY MITCHY'S</div>
+      <h1>NITRO KICKS</h1>
       <div class="title-bar"></div>
     </div>
-    <div class="title-sub">Itchy Mitchy</div>
+    <div class="title-sub">Turbo-Charged Car Soccer</div>
     <div class="menu-panel">
       <div class="lbl">MODE</div>
       <div class="optrow" id="modeRow">
@@ -269,7 +293,7 @@
   </div>
   <div class="start-hint">DRAG TO ROTATE · SCROLL TO ZOOM</div>
 </div>
-<button id="bgBtn" title="Change background" aria-label="Change background">Sunset</button>
+<button id="bgBtn" title="Change menu background" aria-label="Change menu background">BG: Sunset</button>
 
 <div id="arenaScreen">
   <button id="arenaBackBtn">← Back</button>
@@ -4899,6 +4923,8 @@ requestAnimationFrame(loop);
 document.querySelectorAll('#modeRow button').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('#modeRow button').forEach(x => x.classList.remove('sel'));
   b.classList.add('sel'); state.mode = b.dataset.mode;
+  // AI difficulty is irrelevant when there is no AI opponent
+  document.getElementById('diffRow').classList.toggle('dimmed', b.dataset.mode === '2p' || b.dataset.mode === 'free');
 }));
 document.querySelectorAll('#diffRow button').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('#diffRow button').forEach(x => x.classList.remove('sel'));
@@ -4954,7 +4980,7 @@ bgBtn.addEventListener('click', () => {
   bgIndex = (bgIndex + 1) % bgNames.length;
   const name = bgNames[bgIndex];
   applyBg(name);
-  bgBtn.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+  bgBtn.textContent = 'BG: ' + name.charAt(0).toUpperCase() + name.slice(1);
 });
 // Note: applyBg('sunset') is called after startBgScene is initialized below
 const exitBtn = document.getElementById('exitBtn');
@@ -5301,6 +5327,11 @@ function bootMatch() {
   rumbleTimer = 6;
   updateItemLabel();
   state.replayBuffer = [];
+  // Show the controls legend fresh each match, then fade it out of the way
+  const legend = document.getElementById('controls');
+  legend.classList.remove('faded');
+  clearTimeout(window.__legendTimer);
+  window.__legendTimer = setTimeout(() => legend.classList.add('faded'), 12000);
   startKickoffCountdown();
 }
 arenaPlayBtn.addEventListener('click', () => { state.tournament = false; bootMatch(); });
@@ -5404,7 +5435,7 @@ function buildGarage() {
   const rend = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   rend.setSize(280, 170);
   rend.toneMapping = THREE.ACESFilmicToneMapping;
-  rend.toneMappingExposure = 1.5;
+  rend.toneMappingExposure = 1.0; // 1.5 bleached the paint to gray — same wash-out the arena had
   const sc = new THREE.Scene();
   {
     const pmrem = new THREE.PMREMGenerator(rend);
@@ -5418,13 +5449,17 @@ function buildGarage() {
   const dl = new THREE.DirectionalLight(0xffffff, 1.6);
   dl.position.set(150, 250, 120);
   sc.add(dl);
+  // Each car gets its own rich showcase paint — in a match every car wears
+  // team colors anyway, so the garage can show off saturated liveries
+  const SHOWCASE_PAINT = [0xd0342c, 0xff8c1a, 0x2266ee, 0x18b45c, 0x8a3ffc, 0x00b7c3, 0x333a45, 0xffd34a, 0x0a5c36, 0xececf0];
+  let paintIdx = 0;
   for (const key of Object.keys(CAR_TYPES)) {
     const ct = CAR_TYPES[key];
     const card = document.createElement('div');
     card.className = 'arenaCard' + (key === selectedCarType ? ' sel' : '');
     const cv = document.createElement('canvas');
     cv.width = 280; cv.height = 170;
-    const mesh = makeCarMesh(0x7accff, key);
+    const mesh = makeCarMesh(SHOWCASE_PAINT[paintIdx++ % SHOWCASE_PAINT.length], key);
     mesh.rotation.y = Math.PI * 0.7; // 3/4 view
     sc.add(mesh);
     rend.render(sc, cam);
