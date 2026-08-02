@@ -15,8 +15,11 @@ Score more goals than the red team before time runs out. You're on **blue team**
 | **A / D** | Steer left / right |
 | **Space** | Jump (press twice for dodge/flip) |
 | **Shift** | Boost (uses boost meter) |
-| **E** | Powerslide |
-| **Mouse** | Drag to orbit camera, scroll to zoom |
+| **X** | Powerslide |
+| **C** | Toggle ball cam / car cam |
+| **Q** (hold) | Car cam |
+| **M** | Toggle sound |
+| **R** | Reset car |
 
 ### Gameplay Tips
 
@@ -29,11 +32,18 @@ Score more goals than the red team before time runs out. You're on **blue team**
 
 ### Cars
 
-All three cars have identical stats — pick your favorite look:
+Open the **Garage** from the main menu to pick your ride. All cars have identical stats — pick your favorite look:
 
-1. **Hot Wheels** — Classic muscle car with a chrome supercharger
+1. **Hot Wheels** — Vintage hot rod with a chrome supercharger and redline wheels
 2. **Velocity** — McLaren P1-style hypercar with active rear wing
 3. **Viper RT/10** — Dodge Viper roadster with open cockpit and side pipes
+4. **Arrowhead** — Razor-edged wedge, pure aero
+5. **Comet** — Bubble-canopy speedster
+6. **Endurance** — Le Mans prototype, long and low
+7. **Big Bruiser** — Heavyweight street brawler
+8. **Stinger** — Single-seat formula racer, all wing
+9. **Goliath** — Off-road monster on oversized tires
+10. **Wraith** — Ghost-sleek fastback coupe
 
 ### Arenas
 
@@ -56,7 +66,7 @@ All three cars have identical stats — pick your favorite look:
 | Cosmic Void | Zero-gravity, high bounce |
 | Golden Temple | Warm and bright |
 | Cyberpunk City | Neon, high bounce |
-| Snowy Peak | Very slippery, low bounce |
+| Snowy Peak | Very slippery, low bounce, raging blizzard |
 | Retro Arcade | Synthwave aesthetic |
 | Tropical Beach | Sandy, low friction |
 | Mirror Dimension | Slippery, high bounce |

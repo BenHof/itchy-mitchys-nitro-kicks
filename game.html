@@ -88,6 +88,20 @@
   #skipBtn { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); padding: 12px 28px; min-height: 44px; font-family: var(--font-display); font-size: 15px; font-weight: 700; border: 2px solid var(--accent); border-radius: 22px; background: rgba(0,0,0,0.5); color: var(--accent); cursor: pointer; z-index: var(--z-overlay); display: none; backdrop-filter: blur(4px); letter-spacing: 1px; transition: background var(--dur-fast) ease; }
   #skipBtn:hover { background: rgba(255,211,74,0.2); }
   #minimap { position: fixed; top: 90px; left: 30px; width: 130px; height: 196px; border: 2px solid rgba(255,255,255,0.25); border-radius: 8px; background: rgba(8,12,28,0.6); z-index: var(--z-hud); }
+
+  /* Small/touch viewports: keyboard legend is noise, and the desktop HUD
+     footprint swallows the play view — shrink and clear the safe areas. */
+  @media (max-width: 760px) {
+    #controls { display: none; }
+    #minimap { width: 78px; height: 118px; top: 108px; left: 12px; }
+    #score { font-size: 26px; gap: 24px; margin-top: 52px; }
+    #timer { font-size: 13px; }
+    #exitBtn { top: 12px; left: 12px; padding: 6px 14px; min-height: 36px; font-size: 12px; }
+    #camlabel { top: 60px; right: 12px; font-size: 10px; padding: 4px 8px; }
+    #soundlabel { top: 92px; right: 12px; font-size: 10px; padding: 4px 8px; }
+    #boostbar { width: 140px; height: 14px; bottom: 18px; right: 14px; }
+    #boostlabel { bottom: 36px; right: 14px; font-size: 10px; }
+  }
   #ballarrow { position: fixed; top: 50%; left: 50%; width: 0; height: 0; display: none; pointer-events: none; z-index: var(--z-hud); }
 
   /* ===== Start Screen ===== */
@@ -119,9 +133,10 @@
   @keyframes hintPulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.5; } }
 
   /* ===== Arena Screen ===== */
-  #arenaScreen { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start; z-index: var(--z-overlay); background: radial-gradient(ellipse at 50% 50%, var(--void) 0%, var(--void-deep) 100%); padding: 20px; overflow-y: auto; }
-  #arenaScreen h2 { font-family: var(--font-display); font-size: 36px; margin: 10px 0 20px; letter-spacing: 4px; font-weight: 900; text-shadow: 0 0 20px rgba(255,211,74,0.4); flex-shrink: 0; }
-  #arenaGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; max-width: 1200px; width: 100%; justify-content: center; }
+  #arenaScreen, #garageScreen { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: flex-start; z-index: var(--z-overlay); background: radial-gradient(ellipse at 50% 50%, var(--void) 0%, var(--void-deep) 100%); padding: 20px; overflow-y: auto; }
+  #arenaScreen h2, #garageScreen h2 { font-family: var(--font-display); font-size: 36px; margin: 10px 0 20px; letter-spacing: 4px; font-weight: 900; text-shadow: 0 0 20px rgba(255,211,74,0.4); flex-shrink: 0; }
+  #arenaGrid, #garageGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; max-width: 1200px; width: 100%; justify-content: center; }
+  .carDesc { position: absolute; top: 6px; left: 0; right: 0; text-align: center; font-size: 11px; opacity: 0.7; padding: 0 8px; pointer-events: none; }
   .arenaCard { width: 100%; height: 140px; border: 3px solid rgba(255,255,255,0.2); border-radius: 16px; cursor: pointer; overflow: hidden; position: relative; transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast); }
   .arenaCard:hover { transform: scale(1.05); border-color: var(--accent); }
   .arenaCard.sel { border-color: var(--accent); box-shadow: 0 0 20px rgba(255,211,74,0.4); }
@@ -187,6 +202,8 @@
         <button data-diff="allstar">All-Star</button>
         <button data-diff="legendary">Legendary</button>
       </div>
+      <div class="lbl">CAR</div>
+      <div class="optrow"><button id="garageBtn">Hot Wheels ▸ GARAGE</button></div>
       <button id="playBtn">PLAY</button>
     </div>
   </div>
@@ -201,11 +218,25 @@
   <button id="arenaPlayBtn">START GAME</button>
 </div>
 
+<div id="garageScreen">
+  <button id="garageBackBtn" class="back-btn">← Back</button>
+  <h2>GARAGE</h2>
+  <div id="garageGrid"></div>
+</div>
+
 <script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
 </script>
 <script type="module">
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 // ---------- Renderer / Scene ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -214,7 +245,7 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.6;
+renderer.toneMappingExposure = 1.0;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
@@ -222,22 +253,88 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
 scene.fog = new THREE.Fog(0xffffff, 5400, 36000);
 
+// Neutral studio IBL so clearcoat paint, chrome, and glass actually reflect —
+// without an environment map every metal in the arena reads as flat gray.
+{
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+  pmrem.dispose();
+}
+
+
+// Cars keep an explicit envMap reference (same IBL as the scene). The old
+// wash-out problem from scene-wide IBL is handled by the lower tone-mapping
+// exposure (1.25, was 1.6) rather than by denying the arena reflections.
+const carEnvTex = scene.environment;
+
 const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 1, 60000);
 
+// ---------- Post-processing (bloom sells the emissive signals; OutputPass last) ----------
+const composer = new EffectComposer(renderer);
+composer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.4, 0.3, 0.85);
+composer.addPass(bloomPass);
+composer.addPass(new OutputPass());
+// Diagnostics handle for profiling (renderer.info counts, live light tuning)
+window.__gfx = { renderer, composer, bloomPass, scene };
+window.__vfxTest = (x = 0, y = 200, z = 0) => {
+  spawnImpactRing(new THREE.Vector3(x, y, z), 0xffd34a, 400);
+  crowdJump = 1;
+};
+
 // ---------- Lights ----------
-const hemiLight = new THREE.HemisphereLight(0xbfd4ff, 0x202030, 1.5);
+const hemiLight = new THREE.HemisphereLight(0xbfd4ff, 0x202030, 1.0);
 scene.add(hemiLight);
-scene.add(new THREE.AmbientLight(0x8090b0, 1.0));
+scene.add(new THREE.AmbientLight(0x8090b0, 0.45));
 const sun = new THREE.DirectionalLight(0xffffff, 2.0);
 sun.position.set(2700, 5400, 1800);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(4096, 4096);
 sun.shadow.camera.left = -6300; sun.shadow.camera.right = 6300;
 sun.shadow.camera.top = 6300; sun.shadow.camera.bottom = -6300;
 sun.shadow.camera.near = 1; sun.shadow.camera.far = 15000;
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.02;
 scene.add(sun);
+
+// ---------- Gradient sky dome (per-arena top/horizon + sun disc; one draw call) ----------
+// Raw ShaderMaterial bypasses fog and tone mapping, so the sky stays clean at distance.
+const skyUniforms = {
+  uTop:      { value: new THREE.Color(0x2a4a80) },
+  uHorizon:  { value: new THREE.Color(0xcfe4f5) },
+  uSunColor: { value: new THREE.Color(0xfff2cc) },
+  uSunDir:   { value: new THREE.Vector3(2700, 5400, 1800).normalize() },
+};
+const skyDome = new THREE.Mesh(
+  new THREE.SphereGeometry(30000, 32, 16),
+  new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, fog: false, uniforms: skyUniforms,
+    vertexShader: `varying vec3 vDir;
+      void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `varying vec3 vDir;
+      uniform vec3 uTop, uHorizon, uSunColor;
+      uniform vec3 uSunDir;
+      void main(){
+        float h = clamp(vDir.y * 0.5 + 0.5, 0.0, 1.0);
+        vec3 col = mix(uHorizon, uTop, pow(h, 0.6));
+        float d = clamp(dot(normalize(vDir), normalize(uSunDir)), 0.0, 1.0);
+        col += uSunColor * (pow(d, 800.0) + pow(d, 8.0) * 0.25);
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+  })
+);
+skyDome.frustumCulled = false;
+skyDome.renderOrder = -10;
+scene.add(skyDome);
+
+// ---------- Outer ground plane (the stadium bowl needs earth under it) ----------
+const outerGroundMat = new THREE.MeshStandardMaterial({ color: 0x22262e, roughness: 0.97, metalness: 0.0 });
+const outerGround = new THREE.Mesh(new THREE.PlaneGeometry(56000, 56000), outerGroundMat);
+outerGround.rotation.x = -Math.PI / 2;
+outerGround.position.y = -2;
+outerGround.receiveShadow = true;
+scene.add(outerGround);
 
 // ---------- Arena (10x bigger) ----------
 const ARENA = { w: 7200, l: 10800, h: 1800 };
@@ -669,9 +766,16 @@ function applyArena(arenaKey) {
   } else {
     scene.fog = null;
   }
-  // Snow toggle for Frozen Lake
+  // Snow: gentle flurries on Frozen Lake, full blizzard on Snowy Peak
   if (snowMesh) {
-    snowMesh.visible = (arenaKey === 'ice');
+    const blizzard = (arenaKey === 'snow');
+    snowMesh.visible = blizzard || (arenaKey === 'ice');
+    snowActive = blizzard ? SNOW_COUNT : LIGHT_SNOW_COUNT;
+    snowGeo.setDrawRange(0, snowActive);
+    snowMat.size = blizzard ? 26 : 8;
+    snowMat.opacity = blizzard ? 0.95 : 0.6;
+    snowSpeedMul = blizzard ? 2.6 : 1;
+    snowWindX = blizzard ? 220 : 0;
   }
   // Ash & smoke toggle for Volcano
   if (ashMesh) {
@@ -688,10 +792,30 @@ function applyArena(arenaKey) {
   for (const c of state.cars) {
     if (c.carLight) c.carLight.intensity = nightLights ? 4.0 : 0;
   }
+  // Sky dome: derive top/horizon from the arena bg so all 19 arenas keep
+  // their identity; dark arenas get a dimmer haze horizon instead of white.
+  {
+    const bg = new THREE.Color(a.bg);
+    const lum = 0.2126 * bg.r + 0.7152 * bg.g + 0.0722 * bg.b;
+    skyUniforms.uTop.value.copy(bg).multiplyScalar(0.42);
+    skyUniforms.uHorizon.value.copy(bg).lerp(new THREE.Color(0xffffff), 0.2 + 0.35 * Math.min(1, lum * 1.6));
+    skyUniforms.uSunColor.value.setHex(a.lightColor).lerp(new THREE.Color(0xffffff), 0.4);
+    // Outer ground + stadium concrete pick up the arena palette
+    outerGroundMat.color.copy(bg).multiplyScalar(0.22);
+    standConcreteMat.color.setHex(0x2e3340).lerp(new THREE.Color(a.wallColor), 0.25).multiplyScalar(lum < 0.12 ? 0.55 : 1.0);
+    // Bright daylight arenas push the whole floor over the bloom threshold and
+    // haze the screen; keep bloom for the emissive signals only.
+    bloomPass.threshold = lum > 0.45 ? 1.0 : 0.85;
+    bloomPass.strength = lum > 0.45 ? 0.3 : 0.45;
+  }
 }
 
-// ---------- Snow particle system (for Frozen Lake arena) ----------
-const SNOW_COUNT = 2000;
+// ---------- Snow particle system (Frozen Lake: flurries · Snowy Peak: blizzard) ----------
+const SNOW_COUNT = 12000;           // full flake pool — the blizzard uses all of it
+const LIGHT_SNOW_COUNT = 2000;      // gentle flurries (Frozen Lake)
+let snowActive = LIGHT_SNOW_COUNT;  // how many flakes are currently falling
+let snowSpeedMul = 1;               // fall/wind speed multiplier
+let snowWindX = 0;                  // extra sideways gust (blizzard only)
 const snowGeo = new THREE.BufferGeometry();
 const snowPos = new Float32Array(SNOW_COUNT * 3);
 const snowVel = new Float32Array(SNOW_COUNT * 3);
@@ -704,9 +828,21 @@ for (let i = 0; i < SNOW_COUNT; i++) {
   snowVel[i * 3 + 2] = (Math.random() - 0.5) * 30;  // wind Z
 }
 snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+snowGeo.setDrawRange(0, snowActive);
+// Soft round flake sprite — without a map, Points render as hard squares
+const flakeTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 32;
+  const x = c.getContext('2d');
+  const grad = x.createRadialGradient(16, 16, 0, 16, 16, 16);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.6, 'rgba(255,255,255,0.8)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = grad; x.fillRect(0, 0, 32, 32);
+  return new THREE.CanvasTexture(c);
+})();
 const snowMat = new THREE.PointsMaterial({
   color: 0xffffff, size: 8, transparent: true, opacity: 0.6,
-  sizeAttenuation: true, depthWrite: false
+  map: flakeTex, sizeAttenuation: true, depthWrite: false
 });
 const snowMesh = new THREE.Points(snowGeo, snowMat);
 snowMesh.visible = false;
@@ -715,10 +851,15 @@ scene.add(snowMesh);
 function updateSnow(dt) {
   if (!snowMesh.visible) return;
   const pos = snowGeo.attributes.position.array;
-  for (let i = 0; i < SNOW_COUNT; i++) {
-    pos[i * 3] += snowVel[i * 3] * dt;
-    pos[i * 3 + 1] += snowVel[i * 3 + 1] * dt;
-    pos[i * 3 + 2] += snowVel[i * 3 + 2] * dt;
+  // Gusts swirl the blizzard from side to side over time
+  const gust = snowWindX * (0.6 + 0.4 * Math.sin(performance.now() * 0.0004));
+  for (let i = 0; i < snowActive; i++) {
+    pos[i * 3] += (snowVel[i * 3] * snowSpeedMul + gust) * dt;
+    pos[i * 3 + 1] += snowVel[i * 3 + 1] * snowSpeedMul * dt;
+    pos[i * 3 + 2] += snowVel[i * 3 + 2] * snowSpeedMul * dt;
+    // Wrap wind-blown flakes so the blizzard stays over the arena
+    const limX = ARENA.w * 0.7;
+    if (pos[i * 3] > limX) pos[i * 3] = -limX;
     // Reset snowflake when it hits the ground
     if (pos[i * 3 + 1] < 0) {
       pos[i * 3] = (Math.random() - 0.5) * ARENA.w * 1.4;
@@ -855,7 +996,70 @@ function updateBoostTrail(dt) {
   boostTrailGeo.attributes.color.needsUpdate = true;
 }
 
-// ---------- Floodlight system (for Night Stadium arena) ----------
+// ---------- Impact rings: expanding shockwaves on hard ball hits and goals ----------
+const RING_POOL = 10;
+const impactRings = [];
+{
+  const ringGeo = new THREE.RingGeometry(0.62, 1.0, 40);
+  for (let i = 0; i < RING_POOL; i++) {
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 0,
+      side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending
+    });
+    const m = new THREE.Mesh(ringGeo, mat);
+    m.visible = false;
+    scene.add(m);
+    impactRings.push({ mesh: m, life: 0, maxLife: 0.45, size: 100 });
+  }
+}
+let ringIdx = 0;
+function spawnImpactRing(pos, color, size) {
+  const r = impactRings[ringIdx];
+  ringIdx = (ringIdx + 1) % RING_POOL;
+  r.mesh.visible = true;
+  r.mesh.position.copy(pos);
+  r.mesh.material.color.set(color);
+  r.life = r.maxLife;
+  r.size = size;
+}
+function updateImpactRings(dt) {
+  for (const r of impactRings) {
+    if (r.life <= 0) continue;
+    r.life -= dt;
+    if (r.life <= 0) { r.mesh.visible = false; continue; }
+    const t = 1 - r.life / r.maxLife;
+    const s = r.size * (0.25 + t * 1.6);
+    r.mesh.scale.set(s, s, s);
+    r.mesh.material.opacity = 0.85 * (1 - t) * (1 - t);
+    r.mesh.quaternion.copy(camera.quaternion); // billboard toward camera
+  }
+}
+
+// ---------- Ball contact shadow: grounds the ball during aerials ----------
+const blobShadowTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(64, 64, 8, 64, 64, 64);
+  g.addColorStop(0, 'rgba(0,0,0,0.55)');
+  g.addColorStop(0.7, 'rgba(0,0,0,0.28)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+})();
+const ballShadow = new THREE.Mesh(
+  new THREE.PlaneGeometry(1, 1),
+  new THREE.MeshBasicMaterial({ map: blobShadowTex, transparent: true, depthWrite: false })
+);
+ballShadow.rotation.x = -Math.PI / 2;
+ballShadow.position.y = 1.2;
+ballShadow.renderOrder = 1;
+scene.add(ballShadow);
+
+// ---------- Floodlight system ----------
+// Tower structures live in towerGroup (always visible — they are stadium
+// architecture); the actual spotlights + volumetric beams stay night-only.
+const towerGroup = new THREE.Group();
+scene.add(towerGroup);
 const floodGroup = new THREE.Group();
 floodGroup.visible = false;
 scene.add(floodGroup);
@@ -898,7 +1102,7 @@ for (const tp of towerPositions) {
   tower.add(glow);
   // Position tower
   tower.position.set(tp.x, 0, tp.z);
-  floodGroup.add(tower);
+  towerGroup.add(tower);
   // Spotlight — added to scene (not tower group) so target works in world coords
   const spot = new THREE.SpotLight(0xffffee, 8.0, 20000, Math.PI / 6, 0.5, 1.5);
   spot.position.set(tp.x, towerHeight, tp.z);
@@ -936,7 +1140,7 @@ for (const tp of towerPositions) {
 
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(ARENA.w, ARENA.l),
-  new THREE.MeshStandardMaterial({ map: createPitchTexture('grass'), roughness: 0.9, metalness: 0.0 })
+  new THREE.MeshStandardMaterial({ map: createPitchTexture('grass'), roughness: 0.9, metalness: 0.0, envMapIntensity: 0.25 })
 );
 floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
 floorMesh = floor;
@@ -971,12 +1175,16 @@ function makeCurvedStrip(length, radius, widthSegs, lenSegs) {
   return geo;
 }
 
-// Glass material for walls (transparent, see-through)
+// Glass material for walls — cheap fake glass (no transmission buffer).
+// Real `transmission` re-renders the whole scene into a transmission target
+// every frame; on eight arena-sized DoubleSide walls that is the single most
+// expensive material in the game. Opacity + clearcoat + env reflections read
+// the same at play distance for a fraction of the cost.
 const glassMat = new THREE.MeshPhysicalMaterial({
-  color: 0xccddee, transparent: true, opacity: 0.08,
-  roughness: 0.02, metalness: 0.0,
-  transmission: 0.95, ior: 1.45, thickness: 20,
-  clearcoat: 1.0, clearcoatRoughness: 0.02,
+  color: 0xccddee, transparent: true, opacity: 0.07,
+  roughness: 0.12, metalness: 0.0,
+  clearcoat: 1.0, clearcoatRoughness: 0.18,
+  envMapIntensity: 0.5, depthWrite: false,
   side: THREE.DoubleSide
 });
 const curveMat = glassMat;
@@ -1001,8 +1209,8 @@ const rainbowWallTex = createRainbowWallTexture();
 const rainbowWallMat = new THREE.MeshPhysicalMaterial({
   map: rainbowWallTex, color: 0xffffff, transparent: true, opacity: 0.5,
   roughness: 0.1, metalness: 0.0,
-  transmission: 0.5, ior: 1.3, thickness: 10,
   clearcoat: 0.8, clearcoatRoughness: 0.1,
+  envMapIntensity: 1.2, depthWrite: false,
   side: THREE.DoubleSide
 });
 const curveSegs = 32;
@@ -1032,14 +1240,8 @@ const allCurveMeshes = [];
 
 // ---------- Vertical walls (start above the curve) — glass ----------
 function wall(w, h, d, x, y, z, color) {
-  const mat = new THREE.MeshPhysicalMaterial({
-    color, transparent: true, opacity: 0.15,
-    roughness: 0.02, metalness: 0.0,
-    transmission: 0.9, ior: 1.45, thickness: 20,
-    clearcoat: 1.0, clearcoatRoughness: 0.02,
-    side: THREE.DoubleSide
-  });
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  // Shared cheap glass — applyArena retints/swaps this material for all walls
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), glassMat);
   m.position.set(x, y, z); m.receiveShadow = true; scene.add(m);
   allWallMeshes.push(m);
   return m;
@@ -1062,8 +1264,264 @@ wall(GOAL_W, aboveGoalH, 4, 0, GOAL_H + aboveGoalH/2, endX, wallColor);
 wall(GOAL_W, aboveGoalH, 4, 0, GOAL_H + aboveGoalH/2, -endX, wallColor);
 // ceiling — removed (open-air stadium)
 
-// ---------- Stadium stands with crowd (outside the glass walls) ----------
-// Stands removed
+// ---------- Stadium bowl: grandstands, crowd, ad boards, jumbotrons ----------
+const stadiumGroup = new THREE.Group();
+scene.add(stadiumGroup);
+
+// Shared stadium materials — tinted per arena in applyArena
+const standConcreteMat = new THREE.MeshStandardMaterial({ color: 0x2e3340, roughness: 0.9, metalness: 0.05 });
+const standFasciaMat = new THREE.MeshStandardMaterial({ color: 0x171b24, roughness: 0.7, metalness: 0.2 });
+const steelMat = new THREE.MeshStandardMaterial({ color: 0x3a4152, roughness: 0.45, metalness: 0.7 });
+const trimGoldMat = new THREE.MeshStandardMaterial({ color: 0x201a08, emissive: 0xffd34a, emissiveIntensity: 1.6, roughness: 0.4 });
+
+// Grandstand: real staircase profile extruded along the side (one geometry per side)
+const STAND = { rows: 12, stepD: 170, stepR: 150, baseY: 430, gap: 520 };
+function makeStandGeo(length) {
+  const s = new THREE.Shape();
+  const D = STAND.rows * STAND.stepD;
+  s.moveTo(0, 0);
+  s.lineTo(0, STAND.baseY);
+  for (let i = 0; i < STAND.rows; i++) {
+    const x = i * STAND.stepD, y = STAND.baseY + i * STAND.stepR;
+    s.lineTo(x, y + STAND.stepR);
+    s.lineTo(x + STAND.stepD, y + STAND.stepR);
+  }
+  s.lineTo(D, 0);
+  s.closePath();
+  return new THREE.ExtrudeGeometry(s, { depth: length, bevelEnabled: false });
+}
+// Back wall + roof canopy per stand so the bowl reads closed from field level
+function makeStand(length) {
+  const g = new THREE.Group();
+  const stand = new THREE.Mesh(makeStandGeo(length), standConcreteMat);
+  stand.position.z = -length / 2;
+  g.add(stand);
+  const D = STAND.rows * STAND.stepD;
+  const topY = STAND.baseY + STAND.rows * STAND.stepR;
+  const back = new THREE.Mesh(new THREE.BoxGeometry(120, topY + 700, length), standFasciaMat);
+  back.position.set(D + 60, (topY + 700) / 2, 0);
+  g.add(back);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(D * 0.72, 60, length), steelMat);
+  roof.position.set(D * 0.55, topY + 660, 0);
+  g.add(roof);
+  const roofTrim = new THREE.Mesh(new THREE.BoxGeometry(40, 34, length), trimGoldMat);
+  roofTrim.position.set(D * 0.55 - D * 0.36, topY + 660, 0);
+  g.add(roofTrim);
+  const fascia = new THREE.Mesh(new THREE.BoxGeometry(40, STAND.baseY, length), standFasciaMat);
+  fascia.position.set(20, STAND.baseY / 2, 0);
+  g.add(fascia);
+  return g;
+}
+// Four stands around the arena (corners stay open for the light towers)
+{
+  const sideLen = ARENA.l, endLen = ARENA.w;
+  const sx = ARENA.w / 2 + STAND.gap, sz = ARENA.l / 2 + STAND.gap;
+  const sidePlus = makeStand(sideLen);  sidePlus.position.set(sx, 0, 0);                                  stadiumGroup.add(sidePlus);
+  const sideMinus = makeStand(sideLen); sideMinus.rotation.y = Math.PI;      sideMinus.position.set(-sx, 0, 0);  stadiumGroup.add(sideMinus);
+  const endPlus = makeStand(endLen);    endPlus.rotation.y = -Math.PI / 2;   endPlus.position.set(0, 0, sz);     stadiumGroup.add(endPlus);
+  const endMinus = makeStand(endLen);   endMinus.rotation.y = Math.PI / 2;   endMinus.position.set(0, 0, -sz);   stadiumGroup.add(endMinus);
+}
+
+// ---------- Crowd: one InstancedMesh of card sprites with per-instance color + bob ----------
+const CROWD_PALETTE = ['#e8e8f0', '#ffd34a', '#ff7a3c', '#66dd99', '#c792ea', '#f07178', '#82aaff', '#39424e', '#d9b48a', '#4a5262'];
+const crowdMat = new THREE.MeshLambertMaterial({ side: THREE.DoubleSide });
+crowdMat.onBeforeCompile = (shader) => {
+  shader.uniforms.uTime = { value: 0 };
+  shader.uniforms.uJump = { value: 0 };
+  crowdMat.userData.shader = shader;
+  shader.vertexShader = 'uniform float uTime;\nuniform float uJump;\n' + shader.vertexShader.replace(
+    '#include <begin_vertex>',
+    `#include <begin_vertex>
+     #ifdef USE_INSTANCING
+       float crowdPhase = instanceMatrix[3].x * 0.013 + instanceMatrix[3].z * 0.017;
+     #else
+       float crowdPhase = 0.0;
+     #endif
+     float bobAmp = 6.0 + uJump * 55.0;
+     transformed.y += max(0.0, sin(uTime * (3.0 + uJump * 6.0) + crowdPhase * 40.0)) * bobAmp;`
+  );
+};
+crowdMat.customProgramCacheKey = () => 'crowd-bob';
+let crowdJump = 0; // ramps to 1 on goals, decays in the loop
+
+const crowdSeats = [];
+{
+  const seatSpacing = 118;
+  const addRowSeats = (side) => {
+    // side: {axis:'x'|'z', sign, len, faceRotY, biasColor}
+    for (let row = 0; row < STAND.rows; row++) {
+      const outward = STAND.gap + row * STAND.stepD + STAND.stepD * 0.55;
+      const y = STAND.baseY + (row + 1) * STAND.stepR + 40;
+      const count = Math.floor(side.len / seatSpacing);
+      for (let k = 0; k < count; k++) {
+        if (Math.random() < 0.12) continue; // empty seats read as texture, not a solid slab
+        const t = -side.len / 2 + (k + 0.5) * seatSpacing + (Math.random() - 0.5) * 30;
+        let x, z;
+        if (side.axis === 'x') { x = side.sign * (ARENA.w / 2 + outward); z = t; }
+        else { z = side.sign * (ARENA.l / 2 + outward); x = t; }
+        crowdSeats.push({ x, y, z, rotY: side.faceRotY, bias: side.biasColor });
+      }
+    }
+  };
+  addRowSeats({ axis: 'x', sign: 1,  len: ARENA.l, faceRotY: -Math.PI / 2, biasColor: null });
+  addRowSeats({ axis: 'x', sign: -1, len: ARENA.l, faceRotY: Math.PI / 2,  biasColor: null });
+  addRowSeats({ axis: 'z', sign: 1,  len: ARENA.w, faceRotY: Math.PI,      biasColor: '#ff7a7a' });
+  addRowSeats({ axis: 'z', sign: -1, len: ARENA.w, faceRotY: 0,            biasColor: '#7accff' });
+}
+const crowdMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(46, 76), crowdMat, crowdSeats.length);
+{
+  const dummy = new THREE.Object3D();
+  const col = new THREE.Color();
+  for (let i = 0; i < crowdSeats.length; i++) {
+    const s = crowdSeats[i];
+    dummy.position.set(s.x, s.y, s.z);
+    dummy.rotation.set(0, s.rotY, 0);
+    const sc = 0.85 + Math.random() * 0.4;
+    dummy.scale.set(sc, sc, 1);
+    dummy.updateMatrix();
+    crowdMesh.setMatrixAt(i, dummy.matrix);
+    // End stands lean toward their team color; sides stay a mixed-jersey crowd
+    if (s.bias && Math.random() < 0.55) col.set(s.bias).offsetHSL((Math.random() - 0.5) * 0.04, 0, (Math.random() - 0.5) * 0.25);
+    else col.set(CROWD_PALETTE[Math.floor(Math.random() * CROWD_PALETTE.length)]).offsetHSL(0, 0, (Math.random() - 0.5) * 0.12);
+    crowdMesh.setColorAt(i, col);
+  }
+  crowdMesh.instanceMatrix.needsUpdate = true;
+  crowdMesh.instanceColor.needsUpdate = true;
+}
+stadiumGroup.add(crowdMesh);
+
+// ---------- Ad-board ring around the glass base ----------
+function createAdBoardTexture() {
+  const c = document.createElement('canvas');
+  c.width = 2048; c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#0d1120'; ctx.fillRect(0, 0, c.width, c.height);
+  const ads = [
+    { text: 'ITCHY MITCHY', fg: '#ffd34a', bg: '#0d1120' },
+    { text: 'NITRO KICKS', fg: '#0d1120', bg: '#ffd34a' },
+    { text: 'BOOST★COLA', fg: '#ffffff', bg: '#c2361f' },
+    { text: "MITCHY'S GARAGE", fg: '#7accff', bg: '#101828' },
+    { text: 'RACCOON RACING', fg: '#0d1120', bg: '#e8e8f0' },
+    { text: 'TURBO+', fg: '#ff7a3c', bg: '#181020' },
+  ];
+  const w = c.width / ads.length;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let i = 0; i < ads.length; i++) {
+    ctx.fillStyle = ads[i].bg; ctx.fillRect(i * w + 4, 4, w - 8, c.height - 8);
+    ctx.fillStyle = ads[i].fg;
+    ctx.font = '900 52px Rajdhani, Arial, sans-serif';
+    ctx.fillText(ads[i].text, i * w + w / 2, c.height / 2 + 2);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = 8;
+  tex.wrapS = THREE.RepeatWrapping;
+  return tex;
+}
+const adBoardTex = createAdBoardTexture();
+const adBoardMat = new THREE.MeshStandardMaterial({
+  map: adBoardTex, emissive: 0xffffff, emissiveMap: adBoardTex, emissiveIntensity: 0.26,
+  roughness: 0.6, metalness: 0.1
+});
+{
+  const boardH = 330, boardY = boardH / 2, off = 90;
+  const addBoard = (w, x, z, rotY) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, boardH), adBoardMat);
+    m.position.set(x, boardY, z);
+    m.rotation.y = rotY;
+    stadiumGroup.add(m);
+  };
+  const bx = ARENA.w / 2 + off, bz = ARENA.l / 2 + off;
+  for (const s of [-1, 1]) {
+    // side boards (3 segments per side, facing the pitch)
+    for (let seg = -1; seg <= 1; seg++) addBoard(3400, s * bx, seg * 3550, s > 0 ? -Math.PI / 2 : Math.PI / 2);
+    // end boards flank the goal mouth
+    for (const g of [-1, 1]) addBoard(2300, g * (GOAL_W / 2 + 1300), s * bz, s > 0 ? Math.PI : 0);
+  }
+}
+
+// ---------- Jumbotrons above each goal ----------
+function createJumbotronTexture() {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 512;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, c.height);
+  grad.addColorStop(0, '#141428'); grad.addColorStop(1, '#0a0a16');
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.strokeStyle = '#ffd34a'; ctx.lineWidth = 10;
+  ctx.strokeRect(14, 14, c.width - 28, c.height - 28);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#7accff';
+  ctx.font = '700 64px Rajdhani, Arial, sans-serif';
+  ctx.fillText("ITCHY MITCHY'S", c.width / 2, 150);
+  ctx.fillStyle = '#ffd34a';
+  ctx.font = '900 128px Rajdhani, Arial, sans-serif';
+  ctx.fillText('NITRO KICKS', c.width / 2, 300);
+  // lightning bolt
+  ctx.fillStyle = '#ff7a3c';
+  ctx.beginPath();
+  ctx.moveTo(512 - 30, 340); ctx.lineTo(512 + 26, 340); ctx.lineTo(512 - 6, 400);
+  ctx.lineTo(512 + 30, 400); ctx.lineTo(512 - 26, 480); ctx.lineTo(512 - 2, 418); ctx.lineTo(512 - 34, 418);
+  ctx.closePath(); ctx.fill();
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = 8;
+  return tex;
+}
+const jumboTex = createJumbotronTexture();
+const jumboScreenMat = new THREE.MeshStandardMaterial({
+  color: 0x0a0a12, emissive: 0xffffff, emissiveMap: jumboTex, emissiveIntensity: 1.1, roughness: 0.4
+});
+for (const s of [-1, 1]) {
+  const jz = s * (ARENA.l / 2 + 2350);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(2900, 1560, 130), standFasciaMat);
+  frame.position.set(0, 3260, jz);
+  stadiumGroup.add(frame);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(2680, 1360), jumboScreenMat);
+  screen.position.set(0, 3260, jz - s * 70);
+  screen.rotation.y = s > 0 ? Math.PI : 0;
+  stadiumGroup.add(screen);
+  const trim = new THREE.Mesh(new THREE.BoxGeometry(2900, 40, 140), trimGoldMat);
+  trim.position.set(0, 3260 - 800, jz);
+  stadiumGroup.add(trim);
+  for (const lx of [-1, 1]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(42, 58, 2480, 10), steelMat);
+    leg.position.set(lx * 1150, 1240, jz);
+    stadiumGroup.add(leg);
+  }
+}
+
+// ---------- Glass-wall support pylons + gold top trim rail ----------
+{
+  const pylonGeo = new THREE.BoxGeometry(30, ARENA.h, 30);
+  const positions = [];
+  for (let k = -3; k <= 3; k++) if (k !== 0) positions.push([ARENA.w / 2, k * 1350], [-ARENA.w / 2, k * 1350]);
+  positions.push([ARENA.w / 2, 0], [-ARENA.w / 2, 0]);
+  const endXs = [-2700, -1350, 1350, 2700];
+  const pylonCount = positions.length + endXs.length * 2;
+  const pylons = new THREE.InstancedMesh(pylonGeo, steelMat, pylonCount);
+  const dummy = new THREE.Object3D();
+  let pi = 0;
+  for (const [px, pz] of positions) {
+    dummy.position.set(px, ARENA.h / 2, pz); dummy.rotation.set(0, 0, 0); dummy.updateMatrix();
+    pylons.setMatrixAt(pi++, dummy.matrix);
+  }
+  for (const ex of endXs) for (const s of [-1, 1]) {
+    dummy.position.set(ex, ARENA.h / 2, s * ARENA.l / 2); dummy.updateMatrix();
+    pylons.setMatrixAt(pi++, dummy.matrix);
+  }
+  pylons.instanceMatrix.needsUpdate = true;
+  scene.add(pylons);
+
+  const railSide = new THREE.BoxGeometry(24, 30, ARENA.l);
+  const railEnd = new THREE.BoxGeometry(ARENA.w, 30, 24);
+  for (const s of [-1, 1]) {
+    const r1 = new THREE.Mesh(railSide, trimGoldMat);
+    r1.position.set(s * ARENA.w / 2, ARENA.h + 15, 0);
+    scene.add(r1);
+    const r2 = new THREE.Mesh(railEnd, trimGoldMat);
+    r2.position.set(0, ARENA.h + 15, s * ARENA.l / 2);
+    scene.add(r2);
+  }
+}
 
 // ---------- Player selection state ----------
 let selectedCarType = 'muscle';
@@ -1176,16 +1634,28 @@ makeGoal(-ARENA.l / 2, 0x7accff);  // blue team goal
 
 // ---------- Boost pads (scaled for big arena) ----------
 const boostPads = [];
+// Shared pad geometry/materials — pads are an authored pickup: base plate,
+// beveled outer ring, and a floating spinning energy core (octahedron for
+// small pads, taller double-pyramid for big 100-boost pads).
+const padCoreMatBig = new THREE.MeshStandardMaterial({ color: 0x2a1f05, emissive: 0xffd34a, emissiveIntensity: 2.6, roughness: 0.3 });
+const padCoreMatSmall = new THREE.MeshStandardMaterial({ color: 0x2a1f05, emissive: 0xffd34a, emissiveIntensity: 2.0, roughness: 0.3 });
 function makePad(x, z, big) {
   const amount = big ? 100 : 12;
   const r = big ? 72 : 27;
   const mat = new THREE.MeshStandardMaterial({ color: 0xffd34a, emissive: 0xffd34a, emissiveIntensity: 0.8, transparent: true, opacity: 0.9 });
   const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.3, 24), mat);
   mesh.position.set(x, 0.15, z); scene.add(mesh);
-  const ring = new THREE.Mesh(new THREE.RingGeometry(r + 1, r + 3, 24),
-    new THREE.MeshStandardMaterial({ color: 0xffd34a, emissive: 0xffd34a, emissiveIntensity: 0.6, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
-  ring.rotation.x = -Math.PI / 2; ring.position.set(x, 0.1, z); scene.add(ring);
-  boostPads.push({ pos: new THREE.Vector3(x, 0, z), amount, mesh, ring, cooldown: 0, big });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(r + 4, big ? 5 : 2.5, 10, 28),
+    new THREE.MeshStandardMaterial({ color: 0xffd34a, emissive: 0xffd34a, emissiveIntensity: 0.6, transparent: true, opacity: 0.7 }));
+  ring.rotation.x = -Math.PI / 2; ring.position.set(x, 2, z); scene.add(ring);
+  const core = new THREE.Mesh(
+    new THREE.OctahedronGeometry(big ? 34 : 14),
+    big ? padCoreMatBig : padCoreMatSmall
+  );
+  if (big) core.scale.y = 1.8;
+  core.position.set(x, big ? 90 : 34, z);
+  scene.add(core);
+  boostPads.push({ pos: new THREE.Vector3(x, 0, z), amount, mesh, ring, core, cooldown: 0, big });
 }
 // big pads: corners + center
 makePad(ARENA.w/2 - 450, ARENA.l/2 - 450, true);
@@ -1209,10 +1679,41 @@ for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
 const CAR = { w: 36, h: 15, l: 54, radius: 30 };
 
 // Car body types — each has dramatically different width, length, height, and shape
+// All cars share identical stats — pick your favorite look.
+// muscle / velocity / viper use hand-built custom meshes; the rest use the
+// parametric body builder in makeCarMesh (roof: 'wedge' | 'dome' | 'flat').
+const SAME_STATS = { speed: 4, agility: 4, power: 4, control: 4 };
 const CAR_TYPES = {
-  muscle: { name: 'Hot Wheels', desc: 'Muscle car with blower',
+  muscle: { name: 'Hot Wheels', desc: 'Vintage hot rod — chrome blower, redline wheels',
     w: 1.1, l: 1.25, bodyH: 0.5, cabinH: 0.35, cabinLen: 0.35, hoodLen: 0.5, wingH: 1.6, wingW: 1.1, roof: 'muscle',
-    stats: { speed: 4, agility: 4, power: 4, control: 4 } },
+    stats: SAME_STATS },
+  velocity: { name: 'Velocity', desc: 'McLaren P1-style hypercar with active wing',
+    w: 1.0, l: 1.2, bodyH: 0.45, cabinH: 0.3, cabinLen: 0.4, hoodLen: 0.45, wingH: 1.4, wingW: 1.05, roof: 'wedge',
+    stats: SAME_STATS },
+  viper: { name: 'Viper RT/10', desc: 'Open-top roadster with side pipes',
+    w: 1.05, l: 1.25, bodyH: 0.5, cabinH: 0.3, cabinLen: 0.4, hoodLen: 0.5, wingH: 1.2, wingW: 1.0, roof: 'flat',
+    stats: SAME_STATS },
+  arrow: { name: 'Arrowhead', desc: 'Razor-edged wedge — pure aero',
+    w: 0.95, l: 1.2, bodyH: 0.42, cabinH: 0.28, cabinLen: 0.38, hoodLen: 0.5, wingH: 1.05, wingW: 1.1, roof: 'wedge',
+    stats: SAME_STATS },
+  comet: { name: 'Comet', desc: 'Bubble-canopy speedster',
+    w: 1.15, l: 0.95, bodyH: 0.55, cabinH: 0.45, cabinLen: 0.55, hoodLen: 0.25, wingH: 0.95, wingW: 0.9, roof: 'dome',
+    stats: SAME_STATS },
+  endurance: { name: 'Endurance', desc: 'Le Mans prototype — long, low, planted',
+    w: 1.05, l: 1.4, bodyH: 0.38, cabinH: 0.26, cabinLen: 0.32, hoodLen: 0.55, wingH: 1.1, wingW: 1.2, roof: 'flat',
+    stats: SAME_STATS },
+  bruiser: { name: 'Big Bruiser', desc: 'Heavyweight street brawler',
+    w: 1.25, l: 1.1, bodyH: 0.62, cabinH: 0.38, cabinLen: 0.45, hoodLen: 0.4, wingH: 1.0, wingW: 1.15, roof: 'flat',
+    stats: SAME_STATS },
+  stinger: { name: 'Stinger', desc: 'Single-seat formula racer — all wing, no fat',
+    w: 0.7, l: 1.25, bodyH: 0.32, cabinH: 0.24, cabinLen: 0.3, hoodLen: 0.6, wingH: 0.95, wingW: 1.3, roof: 'wedge', tire: 0.9,
+    stats: SAME_STATS },
+  goliath: { name: 'Goliath', desc: 'Off-road monster on oversized tires',
+    w: 1.3, l: 1.05, bodyH: 0.7, cabinH: 0.42, cabinLen: 0.45, hoodLen: 0.35, wingH: 1.15, wingW: 1.2, roof: 'flat', tire: 1.25,
+    stats: SAME_STATS },
+  wraith: { name: 'Wraith', desc: 'Ghost-sleek fastback coupe',
+    w: 1.0, l: 1.15, bodyH: 0.4, cabinH: 0.36, cabinLen: 0.6, hoodLen: 0.3, wingH: 0.9, wingW: 0.85, roof: 'dome',
+    stats: SAME_STATS },
 };
 
 // Player team color = selected paint color. Opponent is always orange.
@@ -1434,8 +1935,8 @@ function makeVelocityMesh(paintColor) {
   const carbonFiber = new THREE.MeshStandardMaterial({ color: 0x121218, roughness: 0.35, metalness: 0.75 });
   const glass = new THREE.MeshPhysicalMaterial({
     color: 0x040608, roughness: 0.005, metalness: 0.15,
-    transparent: true, opacity: 0.35, transmission: 0.65, ior: 1.45,
-    clearcoat: 1.0, clearcoatRoughness: 0.005
+    transparent: true, opacity: 0.55,
+    clearcoat: 1.0, clearcoatRoughness: 0.005, envMapIntensity: 1.6
   });
   const silverWheel = new THREE.MeshStandardMaterial({ color: 0xaab4c0, roughness: 0.12, metalness: 0.98 });
   const darkWheel = new THREE.MeshStandardMaterial({ color: 0x181820, roughness: 0.25, metalness: 0.85 });
@@ -1728,7 +2229,8 @@ function makeViperMesh(paintColor) {
   const darkInterior = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.6 });
   const glass = new THREE.MeshPhysicalMaterial({
     color: 0x05080a, roughness: 0.01, metalness: 0.2,
-    transparent: true, opacity: 0.3, transmission: 0.5, ior: 1.45
+    transparent: true, opacity: 0.5,
+    clearcoat: 1.0, clearcoatRoughness: 0.01, envMapIntensity: 1.6
   });
   const blackWheel = new THREE.MeshStandardMaterial({ color: 0x181818, roughness: 0.3, metalness: 0.8 });
   const yellowAccent = new THREE.MeshStandardMaterial({ color: 0xffdd00, emissive: 0xffdd00, emissiveIntensity: 0.3, roughness: 0.3, metalness: 0.6 });
@@ -1943,17 +2445,18 @@ function makeCarMesh(paintColor, carType) {
   const cl = CAR.l * ct.l;
   const g = new THREE.Group();
 
-  // Materials — glossy paint with clearcoat, bright and reflective
+  // Materials — metallic clearcoat paint (relies on scene.environment for reflections)
   const paint = new THREE.MeshPhysicalMaterial({
-    color: paintColor, roughness: 0.3, metalness: 0.2,
-    clearcoat: 1.0, clearcoatRoughness: 0.08, envMapIntensity: 1.0
+    color: paintColor, roughness: 0.25, metalness: 0.35,
+    clearcoat: 1.0, clearcoatRoughness: 0.04, envMapIntensity: 0.9
   });
+  const mattePlastic = new THREE.MeshStandardMaterial({ color: 0x151518, roughness: 0.95, metalness: 0.05 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x1a1a22, roughness: 0.4, metalness: 0.6 });
   const carbonFiber = new THREE.MeshStandardMaterial({ color: 0x222228, roughness: 0.3, metalness: 0.8 });
   const glass = new THREE.MeshPhysicalMaterial({
     color: 0x111827, roughness: 0.01, metalness: 0.3,
-    transparent: true, opacity: 0.35, transmission: 0.7, ior: 1.45,
-    clearcoat: 1.0, clearcoatRoughness: 0.01
+    transparent: true, opacity: 0.55,
+    clearcoat: 1.0, clearcoatRoughness: 0.01, envMapIntensity: 1.6
   });
   const accent = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: paintColor, emissiveIntensity: 1.0, roughness: 0.2 });
   const chrome = new THREE.MeshStandardMaterial({ color: 0xe0e8f0, roughness: 0.02, metalness: 1.0 });
@@ -2068,10 +2571,12 @@ function makeCarMesh(paintColor, carType) {
     ep.position.set(sx * wingW * 0.48, wingY, wingZ);
     g.add(ep);
   }
-  // Wing posts — slim carbon fiber struts
+  // Wing posts — span from the rear deck all the way up to the wing blade
+  const deckY = bodyH * 0.75 + 0.55 * S;
+  const postH = Math.max(0.2 * S, wingY - deckY);
   for (const sx of [-0.4, 0.4]) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.06 * S, 0.25 * S, 0.06 * S), carbonFiber);
-    post.position.set(sx * S, wingY - 0.15 * S, wingZ);
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.06 * S, postH, 0.09 * S), carbonFiber);
+    post.position.set(sx * S, wingY - postH / 2, wingZ);
     g.add(post);
   }
 
@@ -2087,10 +2592,12 @@ function makeCarMesh(paintColor, carType) {
   g.add(tail);
 
   // ===== Wheels — premium with fat tires, chrome rims, spokes =====
-  const tireR = 0.5 * S;
+  const tireR = 0.5 * S * (ct.tire || 1); // per-car tire scale — wheels self-ground at y = tireR
   const tireMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.85 });
   const rimMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e8, roughness: 0.05, metalness: 1.0 });
   const wx = cw / 2 + 0.08 * S, wz = cl / 2 - 0.65 * S;
+  const brakeDiscMat = new THREE.MeshStandardMaterial({ color: 0x8a8a94, roughness: 0.35, metalness: 0.9 });
+  const caliperMat = new THREE.MeshStandardMaterial({ color: 0xcc2222, roughness: 0.4, metalness: 0.3 });
   const wheelMeshes = [];
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const wheelGroup = new THREE.Group();
@@ -2102,26 +2609,73 @@ function makeCarMesh(paintColor, carType) {
     const sidewall = new THREE.Mesh(new THREE.TorusGeometry(tireR * 0.95, 0.04 * S, 8, 28), tireMat);
     sidewall.rotation.x = Math.PI / 2;
     wheelGroup.add(sidewall);
-    // Rim — chrome disc
-    const rim = new THREE.Mesh(new THREE.CylinderGeometry(tireR * 0.6, tireR * 0.6, 0.4 * S, 20), rimMat);
-    wheelGroup.add(rim);
+    // Brake disc — sits centered so it shows through the open rim
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(tireR * 0.5, tireR * 0.5, 0.08 * S, 24), brakeDiscMat);
+    wheelGroup.add(disc);
+    // Open rim: thin outboard barrel + spokes + cap, so the brake disc is visible.
+    // Local +Y maps to world -X after the group's Z rotation, so outboard = -sx.
+    const rimGroup = new THREE.Group();
+    rimGroup.position.y = -sx * 0.13 * S;
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(tireR * 0.6, tireR * 0.6, 0.09 * S, 20), rimMat);
+    rimGroup.add(rim);
     // Spokes (5 Y-spokes)
     for (let i = 0; i < 5; i++) {
       const ang = (i / 5) * Math.PI * 2;
       const spoke = new THREE.Mesh(new THREE.BoxGeometry(tireR * 0.85, 0.03 * S, 0.05 * S), rimMat);
       spoke.position.set(0, Math.sin(ang) * tireR * 0.4, Math.cos(ang) * tireR * 0.4);
       spoke.rotation.x = ang;
-      wheelGroup.add(spoke);
+      rimGroup.add(spoke);
     }
     // Center cap
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(tireR * 0.12, tireR * 0.12, 0.42 * S, 12), rimMat);
-    wheelGroup.add(cap);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(tireR * 0.12, tireR * 0.12, 0.14 * S, 12), rimMat);
+    rimGroup.add(cap);
+    wheelGroup.add(rimGroup);
     wheelGroup.position.set(sx * wx, tireR, sz * wz);
     wheelGroup.rotation.z = Math.PI / 2;
     g.add(wheelGroup);
     wheelMeshes.push(wheelGroup);
+    // Brake caliper — static (outside the spinning wheel group), tucked toward the car body
+    const caliper = new THREE.Mesh(new THREE.BoxGeometry(0.16 * S, tireR * 0.45, tireR * 0.3), caliperMat);
+    caliper.position.set(sx * (wx - 0.06 * S), tireR, sz * wz - sz * tireR * 0.58);
+    g.add(caliper);
   }
   g.userData.wheels = wheelMeshes;
+
+  // ===== Side mirrors =====
+  for (const sx of [-1, 1]) {
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.12 * S, 0.03 * S, 0.04 * S), mattePlastic);
+    arm.position.set(sx * (cw * 0.47), bodyH + 0.62 * S, wsStart - cabinLen * 0.02);
+    g.add(arm);
+    const housing = new THREE.Mesh(new THREE.BoxGeometry(0.14 * S, 0.08 * S, 0.11 * S), paint);
+    housing.position.set(sx * (cw * 0.47 + 0.11 * S), bodyH + 0.66 * S, wsStart - cabinLen * 0.02);
+    g.add(housing);
+  }
+
+  // ===== Front grille — recessed matte intake with chrome slats =====
+  const grille = new THREE.Mesh(new THREE.BoxGeometry(cw * 0.5, 0.16 * S, 0.05 * S), mattePlastic);
+  grille.position.set(0, bodyH * 0.32 + 0.55 * S, cl * 0.442);
+  g.add(grille);
+  for (let i = 0; i < 3; i++) {
+    const slat = new THREE.Mesh(new THREE.BoxGeometry(cw * 0.46, 0.014 * S, 0.055 * S), chrome);
+    slat.position.set(0, bodyH * 0.32 + 0.55 * S + (i - 1) * 0.05 * S, cl * 0.442);
+    g.add(slat);
+  }
+
+  // ===== Exhaust tips + rear diffuser =====
+  for (const sx of [-1, 1]) {
+    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.07 * S, 0.075 * S, 0.24 * S, 14), chrome);
+    tip.rotation.x = Math.PI / 2;
+    tip.position.set(sx * cw * 0.28, 0.38 * S, -cl * 0.47);
+    g.add(tip);
+  }
+  const diffuser = new THREE.Mesh(new THREE.BoxGeometry(cw * 0.8, 0.1 * S, 0.28 * S), mattePlastic);
+  diffuser.position.set(0, 0.33 * S, -cl * 0.43);
+  g.add(diffuser);
+  for (let i = 0; i < 4; i++) {
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.025 * S, 0.16 * S, 0.28 * S), mattePlastic);
+    fin.position.set((i - 1.5) * cw * 0.2, 0.33 * S, -cl * 0.43);
+    g.add(fin);
+  }
 
   // ===== Wheel arches — body-colored fender flares =====
   const archGeo = new THREE.TorusGeometry(tireR * 1.3, 0.08 * S, 8, 20, Math.PI);
@@ -2426,11 +2980,80 @@ const state = {
   countdown: 0, countdownInterval: null,
 };
 
+// Soft radial contact-shadow texture, shared by all cars
+const contactBlobTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const x = c.getContext('2d');
+  const grad = x.createRadialGradient(64, 64, 8, 64, 64, 64);
+  grad.addColorStop(0, 'rgba(0,0,0,0.85)');
+  grad.addColorStop(0.55, 'rgba(0,0,0,0.4)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = grad; x.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+})();
+// White radial glow — additive-blend counterpart of the shadow blob
+const glowBlobTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const x = c.getContext('2d');
+  const grad = x.createRadialGradient(64, 64, 6, 64, 64, 64);
+  grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+  grad.addColorStop(0.5, 'rgba(255,255,255,0.35)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = grad; x.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+})();
+
+let aiCarTypeIdx = 0;
+const AI_CAR_TYPES = ['velocity', 'viper', 'muscle', 'arrow', 'endurance', 'bruiser', 'comet'];
 function makeCar(team, isPlayer, x, z, yaw) {
-  const carType = isPlayer ? selectedCarType : 'muscle';
+  // AI cars cycle through distinct body types so every opponent/teammate has
+  // its own silhouette instead of a recolored copy of one chassis.
+  const carType = isPlayer ? selectedCarType : AI_CAR_TYPES[aiCarTypeIdx++ % AI_CAR_TYPES.length];
   const ct = CAR_TYPES[carType] || CAR_TYPES.muscle;
   const color = teamColor(team);
   const mesh = makeCarMesh(color, carType);
+  // Give the car's paint/chrome/glass real reflections (cars only, not the
+  // arena). The room env is bright, so halve each material's env intensity to
+  // keep pastel team paint from blowing out under the arena's ACES exposure.
+  if (carEnvTex) {
+    mesh.traverse(o => {
+      if (o.material && (o.material.isMeshStandardMaterial || o.material.isMeshPhysicalMaterial)) {
+        o.material.envMap = carEnvTex;
+        o.material.envMapIntensity = (o.material.envMapIntensity ?? 1) * 0.5;
+      }
+    });
+  }
+  // Contact-shadow blob — grounds the car far better than the coarse sun shadow.
+  // Per-car material so opacity can fade independently when airborne.
+  const blob = new THREE.Mesh(
+    new THREE.PlaneGeometry(CAR.w * 2.4, CAR.l * 2.0),
+    new THREE.MeshBasicMaterial({ map: contactBlobTex, transparent: true, opacity: 0.5, depthWrite: false })
+  );
+  blob.rotation.x = -Math.PI / 2;
+  blob.position.y = 1.5;
+  blob.renderOrder = 1;
+  mesh.add(blob);
+  mesh.userData.contactBlob = blob;
+  // Team-color underglow — arcade identity + reads team at a glance from any angle
+  const underglow = new THREE.Mesh(
+    new THREE.PlaneGeometry(CAR.w * 2.9, CAR.l * 2.4),
+    new THREE.MeshBasicMaterial({
+      map: glowBlobTex, color, transparent: true, opacity: 0.55,
+      depthWrite: false, blending: THREE.AdditiveBlending
+    })
+  );
+  underglow.rotation.x = -Math.PI / 2;
+  underglow.position.y = 2.2;
+  underglow.renderOrder = 2;
+  mesh.add(underglow);
+  mesh.userData.underglow = underglow;
+  // Team-color emissive side skirts: trim language + team read at any angle
+  const skirtMat = new THREE.MeshStandardMaterial({ color: 0x101014, emissive: color, emissiveIntensity: 1.6, roughness: 0.4 });
+  for (const sx of [-1, 1]) {
+    const skirt = new THREE.Mesh(new THREE.BoxGeometry(2.5, 3, CAR.l * 1.05 * ct.l), skirtMat);
+    skirt.position.set(sx * CAR.w * 0.6 * ct.w, 6, 0);
+    mesh.add(skirt);
+  }
   scene.add(mesh);
   // Car light (for Night Stadium)
   const carLight = new THREE.PointLight(color, 0, 2000, 1.5);
@@ -2491,8 +3114,9 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
   // Also resize the start screen and garage 3D scenes
-  if (typeof startBgRenderer !== 'undefined') {
+  if (startBgRenderer) {
     startBgRenderer.setSize(innerWidth, innerHeight);
     startBgCamera.aspect = innerWidth / innerHeight;
     startBgCamera.updateProjectionMatrix();
@@ -2919,6 +3543,8 @@ function updateCar(c, input, dt) {
       c.boost = Math.min(100, c.boost + p.amount);
       p.cooldown = p.big ? 10 : 4;
       p.mesh.material.opacity = 0.15;
+      p.core.visible = false; // core is consumed; reappears when the pad recharges
+      spawnImpactRing(p.core.position, 0xffd34a, p.big ? 200 : 90);
       playBoostPickup();
     }
   }
@@ -2952,6 +3578,10 @@ function updateCar(c, input, dt) {
   if (c.flipRoll > 0 && c.dodgeTimer <= 0) c.flipRoll = 0;
   c.isBoosting = !!(input.boost && c.boost > 0);
   if (c.mesh.userData.flames) c.mesh.userData.flames.visible = c.isBoosting;
+  // Fade the contact shadow when airborne
+  if (c.mesh.userData.contactBlob) c.mesh.userData.contactBlob.material.opacity = c.onGround ? 0.5 : 0.12;
+  // Underglow flares while boosting — a readable state cue from any camera
+  if (c.mesh.userData.underglow) c.mesh.userData.underglow.material.opacity = c.isBoosting ? 0.95 : 0.5;
   // Spawn boost trail particles when boosting
   if (c.isBoosting && Math.random() < 0.8) {
     const trailPos = c.pos.clone().addScaledVector(forward, -CAR.radius * 1.2);
@@ -3088,6 +3718,13 @@ function updateBall(dt) {
 
   ball.position.copy(b.pos);
   ballLight.position.copy(b.pos);
+  // Contact shadow follows the ball; fades and widens with height
+  ballShadow.position.set(b.pos.x, 1.2, b.pos.z);
+  const shScale = BALL_R * 2.4 * (1 + b.pos.y * 0.0011);
+  ballShadow.scale.set(shScale, shScale, 1);
+  ballShadow.material.opacity = Math.max(0.1, 0.85 - b.pos.y * 0.00055);
+  // Supersonic streak — the ball leaves a golden trail on power shots
+  if (ballSpeed > 2300) spawnBoostTrail(b.pos, 0xffe9a0);
   // Visual roll based on velocity + spin
   b.ang.x += (b.vel.z * 0.01 + b.spin.x * dt * 0.3) * dt * 60;
   b.ang.y += b.spin.y * dt * 0.3;
@@ -3103,7 +3740,9 @@ function carBallCollision(c, isBoosting) {
   if (ballInGoalMouth) return;
   // Collision center: account for curve height so we can hit the ball on ramps
   const carCurveY = curveGroundHeightR(c.pos.x, c.pos.z, CAR.radius);
-  const carCenter = c.pos.clone(); carCenter.y = carCurveY + CAR.radius * 0.7;
+  // Use the car's actual height when airborne — otherwise aerial hits can
+  // never connect and a flying car gets phantom hits on a grounded ball.
+  const carCenter = c.pos.clone(); carCenter.y = Math.max(c.pos.y, carCurveY) + CAR.radius * 0.7;
   const diff = new THREE.Vector3().subVectors(state.ball.pos, carCenter);
   const dist = diff.length();
   const minDist = BALL_R + CAR.radius * 1.1; // generous hit radius so the ball is easy to hit
@@ -3141,6 +3780,12 @@ function carBallCollision(c, isBoosting) {
       // Safety: check for NaN
       if (!isFinite(state.ball.vel.x)) state.ball.vel.set(0, 0, 0);
       playHit(Math.min(100, Math.abs(vn)));
+      // Impact shockwave scaled by hit strength, tinted by the hitter's team
+      const hitPower = Math.min(1, Math.abs(vn) / 1600);
+      if (hitPower > 0.12) {
+        const contact = carCenter.clone().addScaledVector(n, CAR.radius);
+        spawnImpactRing(contact, isBoosting ? 0xffd34a : teamColor(c.team), 90 + hitPower * 320);
+      }
       // Camera shake on big hits
       if (Math.abs(vn) > 300) cameraShake = Math.min(1.0, Math.abs(vn) / 800);
     }
@@ -3303,6 +3948,9 @@ function scoreGoal(team) {
   spawnConfetti(new THREE.Vector3(0, 300, goalZ), confettiColor, 80);
   // big explosion at ball
   spawnExplosion(state.ball.pos.clone(), confettiColor);
+  // goal shockwave + the whole crowd leaps to its feet
+  spawnImpactRing(new THREE.Vector3(0, GOAL_H / 2, goalZ), confettiColor, 900);
+  crowdJump = 1;
   // After the replay finishes, do kickoff with a 3-second countdown.
   // Replay duration = frames / (60 * speed) + 1s banner, capped at 3s total
   const rawDuration = (state.replay.frames.length / (60 * state.replay.speed)) + 1.0;
@@ -3403,7 +4051,18 @@ function aiInput(c, dt) {
   // Position behind the ball relative to opponent's goal (to shoot toward it)
   const dirToGoal = new THREE.Vector3(0, 0, oppGoalZ).sub(targetBall); dirToGoal.y = 0; dirToGoal.normalize();
   const offset = d.shotOffset ? d.shotOffset : (d.powerShot ? 150 : 225);
-  const target = targetBall.clone().addScaledVector(dirToGoal, offset);
+  let target = targetBall.clone().addScaledVector(dirToGoal, offset);
+  // Wrong side of the ball: driving straight at it from here would shove it
+  // toward our own net. Swing around to the attacking side before lining up.
+  const attackSign = Math.sign(oppGoalZ);
+  const wrongSide = (b.pos.z - c.pos.z) * attackSign < 0;
+  if (wrongSide) {
+    const side = c.pos.x >= b.pos.x ? 1 : -1;
+    const clearance = BALL_R + CAR.radius * 1.1 + 220;
+    target = b.pos.clone();
+    target.z -= attackSign * clearance;
+    target.x += side * clearance;
+  }
   const out = { fwd: true, back: false, left: false, right: false, jump: false, boost: false, powerslide: false };
   const toTarget = target.clone().sub(c.pos); toTarget.y = 0;
   const desiredYaw = Math.atan2(toTarget.x, toTarget.z);
@@ -3565,14 +4224,28 @@ function loop(now) {
   last = now;
 
   for (const p of boostPads) {
-    if (p.cooldown > 0) { p.cooldown -= dt; if (p.cooldown <= 0) p.mesh.material.opacity = 0.9; }
+    if (p.cooldown > 0) {
+      p.cooldown -= dt;
+      if (p.cooldown <= 0) { p.mesh.material.opacity = 0.9; p.core.visible = true; }
+    }
     p.mesh.rotation.y += dt * 1.5;
+    // Idle state: core spins and bobs so pickups read as desirable during motion
+    p.core.rotation.y += dt * (p.big ? 1.8 : 2.6);
+    const baseY = p.big ? 90 : 34;
+    p.core.position.y = baseY + Math.sin(now / 1000 * 2.2 + p.pos.x * 0.01 + p.pos.z * 0.013) * (p.big ? 12 : 6);
   }
   updateExplosions(dt);
   updateConfetti(dt);
   updateSnow(dt);
   updateAsh(dt);
   updateBoostTrail(dt);
+  updateImpactRings(dt);
+  // Crowd idle bob; goal celebrations ramp uJump to 1 and decay back down
+  crowdJump = Math.max(0, crowdJump - dt * 0.4);
+  if (crowdMat.userData.shader) {
+    crowdMat.userData.shader.uniforms.uTime.value = now / 1000;
+    crowdMat.userData.shader.uniforms.uJump.value = crowdJump;
+  }
 
   if (state.running) {
     const pIn = {
@@ -3639,6 +4312,7 @@ function loop(now) {
           msg.style.opacity = 0;
           exitBtn.style.display = 'none';
           document.getElementById('start').style.display = 'flex';
+          bgBtn.style.display = 'block';
           state.gameOver = false;
         }, 4200);
       }
@@ -3652,7 +4326,7 @@ function loop(now) {
   drawMinimap();
   updateBallIndicator();
   if (state.player) boostfill.style.width = state.player.boost + '%';
-  renderer.render(scene, camera);
+  composer.render();
 }
 requestAnimationFrame(loop);
 
@@ -3691,6 +4365,9 @@ const sceneBgColors = {
   grape: 0x1a0a2a, mint: 0x0a2a1a, lava: 0x1a0500, sky: 0x0a1530,
 };
 let startBgSceneReady = false;
+// Start-screen 3D scene objects — declared at module scope so applyBg and the
+// resize handler can reach them; assigned inside the init IIFE below.
+let startBgRenderer, startBgScene, startBgCamera, startCarMesh;
 function applyBg(name) {
   const bg = backgrounds[name];
   // Apply CSS background as fallback (in case 3D canvas fails)
@@ -3727,6 +4404,7 @@ function returnToMenu() {
   exitBtn.style.display = 'none';
   document.getElementById('skipBtn').style.display = 'none';
   document.getElementById('start').style.display = 'flex';
+  bgBtn.style.display = 'block';
   // Reset arena to grass preview when returning to menu
   applyArena('grass');
 }
@@ -3940,6 +4618,7 @@ arenaBackBtn.addEventListener('click', () => {
 arenaPlayBtn.addEventListener('click', () => {
   arenaScreen.style.display = 'none';
   exitBtn.style.display = 'block';
+  bgBtn.style.display = 'none'; // menu-only control — hide during the match
   setupCars();
   applyArena(selectedArena);
   state.score.blue = 0; state.score.orange = 0; updateScoreUI();
@@ -3948,22 +4627,110 @@ arenaPlayBtn.addEventListener('click', () => {
   startKickoffCountdown();
 });
 
+// ---------- Garage (car selection) ----------
+const garageScreen = document.getElementById('garageScreen');
+const garageGrid = document.getElementById('garageGrid');
+const garageBtn = document.getElementById('garageBtn');
+const garageBackBtn = document.getElementById('garageBackBtn');
+
+// Swap the showcase car on the start screen to the currently selected type
+function refreshStartCar() {
+  if (!startBgScene || !startCarMesh) return;
+  startBgScene.remove(startCarMesh);
+  startCarMesh.traverse(o => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose());
+  });
+  startCarMesh = makeCarMesh(0x7accff, selectedCarType);
+  startCarMesh.position.set(0, -15, -200);
+  startBgScene.add(startCarMesh);
+}
+
+// Build the garage cards lazily on first open — each thumbnail is the real
+// 3D mesh rendered once through a shared offscreen renderer.
+let garageBuilt = false;
+function buildGarage() {
+  if (garageBuilt) return;
+  garageBuilt = true;
+  const rend = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  rend.setSize(280, 170);
+  rend.toneMapping = THREE.ACESFilmicToneMapping;
+  rend.toneMappingExposure = 1.5;
+  const sc = new THREE.Scene();
+  {
+    const pmrem = new THREE.PMREMGenerator(rend);
+    sc.environment = pmrem.fromScene(new RoomEnvironment(rend), 0.04).texture;
+    pmrem.dispose();
+  }
+  const cam = new THREE.PerspectiveCamera(35, 280 / 170, 1, 2000);
+  cam.position.set(102, 62, 128);
+  cam.lookAt(0, 12, 0);
+  sc.add(new THREE.HemisphereLight(0xbfd4ff, 0x202030, 0.9));
+  const dl = new THREE.DirectionalLight(0xffffff, 1.6);
+  dl.position.set(150, 250, 120);
+  sc.add(dl);
+  for (const key of Object.keys(CAR_TYPES)) {
+    const ct = CAR_TYPES[key];
+    const card = document.createElement('div');
+    card.className = 'arenaCard' + (key === selectedCarType ? ' sel' : '');
+    const cv = document.createElement('canvas');
+    cv.width = 280; cv.height = 170;
+    const mesh = makeCarMesh(0x7accff, key);
+    mesh.rotation.y = Math.PI * 0.7; // 3/4 view
+    sc.add(mesh);
+    rend.render(sc, cam);
+    cv.getContext('2d').drawImage(rend.domElement, 0, 0);
+    sc.remove(mesh);
+    const desc = document.createElement('div');
+    desc.className = 'carDesc';
+    desc.textContent = ct.desc;
+    const label = document.createElement('div');
+    label.className = 'name';
+    label.textContent = ct.name;
+    card.appendChild(cv); card.appendChild(desc); card.appendChild(label);
+    card.addEventListener('click', () => {
+      document.querySelectorAll('#garageGrid .arenaCard').forEach(c => c.classList.remove('sel'));
+      card.classList.add('sel');
+      selectedCarType = key;
+      garageBtn.textContent = ct.name + ' ▸ GARAGE';
+      refreshStartCar();
+    });
+    garageGrid.appendChild(card);
+  }
+  rend.dispose();
+}
+
+garageBtn.addEventListener('click', () => {
+  buildGarage();
+  document.getElementById('start').style.display = 'none';
+  garageScreen.style.display = 'flex';
+});
+garageBackBtn.addEventListener('click', () => {
+  garageScreen.style.display = 'none';
+  document.getElementById('start').style.display = 'flex';
+});
+
 // ---------- Start screen 3D scene with walking raccoon ----------
 (function() {
   const startBgCanvas = document.getElementById('startBgCanvas');
   if (!startBgCanvas) return;
 
-  const startBgRenderer = new THREE.WebGLRenderer({ canvas: startBgCanvas, antialias: true });
+  startBgRenderer = new THREE.WebGLRenderer({ canvas: startBgCanvas, antialias: true });
   startBgRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   startBgRenderer.setSize(innerWidth, innerHeight);
   startBgRenderer.toneMapping = THREE.ACESFilmicToneMapping;
   startBgRenderer.toneMappingExposure = 1.4;
 
-  const startBgScene = new THREE.Scene();
+  startBgScene = new THREE.Scene();
   startBgScene.background = new THREE.Color(0x0a0a14);
   startBgScene.fog = new THREE.FogExp2(0x0a0a14, 0.0012);
+  {
+    const pmrem = new THREE.PMREMGenerator(startBgRenderer);
+    startBgScene.environment = pmrem.fromScene(new RoomEnvironment(startBgRenderer), 0.04).texture;
+    pmrem.dispose();
+  }
 
-  const startBgCamera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 1, 5000);
+  startBgCamera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 1, 5000);
   startBgCamera.position.set(0, 60, 280);
   startBgCamera.lookAt(0, 20, 0);
 
@@ -3997,7 +4764,7 @@ arenaPlayBtn.addEventListener('click', () => {
   startBgScene.add(ring);
 
   // The car on the platform (moved behind the raccoon)
-  const startCarMesh = makeCarMesh(0x7accff, selectedCarType);
+  startCarMesh = makeCarMesh(0x7accff, selectedCarType);
   startCarMesh.position.set(0, -15, -200);
   startBgScene.add(startCarMesh);
 
@@ -4291,6 +5058,9 @@ arenaPlayBtn.addEventListener('click', () => {
   }
   requestAnimationFrame(animateStart);
 })();
+
+// TEMP DEBUG HOOK — remove before shipping
+window.__test = { state, kickoff, setupCars, aiInput, updateCar, updateBall, carBallCollision, carCarCollisions, DIFF, ARENA, BALL_R, CAR, GOAL_W, GOAL_H };
 
 </script>
 </body>
